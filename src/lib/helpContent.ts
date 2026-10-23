@@ -422,7 +422,7 @@ export const HELP_PAGES: HelpPage[] = [
     steps: [
       { title: "Filter", detail: "Date range (YYYY-MM-DD), account, profile, status, export (Not exported / Exported) and search (company, role or URL)." },
       { title: "No repeats", detail: "A link generated more than once (by any bidder or profile) is listed once. Links that only differ by tracking parameters (utm_…, ref, source), a #fragment, a trailing slash or capital letters in the site name count as the same link; links that differ in the job id after \"?\" stay separate." },
-      { title: "Export selected", detail: "Tick job links (or click their rows) and click Export selected (TXT) above the table to download just those links, one per line." },
+      { title: "Export selected", detail: "Tick job links (or click their rows) and click Export selected (TXT) above the table to download just those links, one per line, or Copy selected to copy them to the clipboard (copying does not mark them as exported)." },
       { title: "Copy or download all", detail: "On the right of the same bar: Copy all links copies every matching link, one per line, ready to paste into Generate Resume. Download all TXT saves the same list; Download all CSV adds company, role, number of applications, bidders, first / last generated and last exported dates." },
       { title: "See what was exported", detail: "Every download (selected, TXT or CSV) marks its links as exported. The Exported column shows when a link was last downloaded (hover for who and how many times), the Exported tile counts them, and the Export filter shows only links not exported yet. Copy all links does not mark links." },
     ],

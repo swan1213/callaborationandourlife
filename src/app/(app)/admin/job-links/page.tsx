@@ -95,6 +95,16 @@ export default function JobLinksPage() {
     }
   }
 
+  async function copySelected() {
+    if (!selected.size) return toast.warning("No job links selected", "Tick the job links you want to copy, then try again.");
+    try {
+      await navigator.clipboard.writeText([...selected].join("\r\n"));
+      toast.success(`${selected.size} job link(s) copied`, "One per line, ready to paste into Generate Resume.");
+    } catch {
+      toast.error("Copy failed");
+    }
+  }
+
   async function copyAll() {
     setBusy("copy");
     try {
@@ -197,6 +207,9 @@ export default function JobLinksPage() {
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-3 py-2.5 sm:px-4">
           <button className="btn btn-primary btn-sm" onClick={exportSelected} disabled={!!busy || !selected.size}>
             {busy === "selected" ? <Spinner className="size-3.5" /> : <Download />} Export selected (TXT){selected.size ? ` (${selected.size})` : ""}
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={copySelected} disabled={!!busy || !selected.size} title="Copy the ticked links, one per line (not marked as exported)">
+            <Copy /> Copy selected{selected.size ? ` (${selected.size})` : ""}
           </button>
           {selected.size > 0 && (
             <button className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set())} disabled={!!busy}>
