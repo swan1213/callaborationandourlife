@@ -1,0 +1,47 @@
+{
+  "name": "interview-assistant",
+  "version": "0.1.3",
+  "description": "Real-time interview helper for non-native English speakers (local server + browser UI; Windows app in desktop/)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n server,vite -c blue,green \"node --watch-path=server server/index.cjs\" \"vite\"",
+    "companion": "concurrently -k -n build,server -c yellow,blue \"vite build --watch\" \"node --watch-path=server server/index.cjs\"",
+    "build": "vite build",
+    "start": "vite build && node server/index.cjs --open",
+    "serve": "node server/index.cjs --open",
+    "desktop": "vite build && node desktop/prepare.mjs && electron .",
+    "dist:win": "vite build && node desktop/prepare.mjs && electron-builder --win --publish never",
+    "test": "node --test",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "check": "prettier --check . && eslint . && node --test",
+    "release:win": "vite build && node desktop/prepare.mjs && electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "mammoth": "^1.13.0",
+    "openai": "^4.77.0",
+    "unpdf": "1.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@resvg/resvg-js": "^2.6.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3",
+    "eslint": "10.12.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.12.0",
+    "prettier": "3.9.9",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^6.0.7"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "author": "Interview Assistant",
+  "main": "desktop/main.cjs"
+}

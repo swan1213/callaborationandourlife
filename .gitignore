@@ -1,0 +1,13 @@
+node_modules
+.next
+out
+# Any env file (including names with spaces, e.g. ".env production"); only the example is committed.
+.env*
+!.env.example
+.vercel
+*.tsbuildinfo
+# Project archives (they contain .env.local and node_modules)
+*.rar
+*.zip
+*.7z
+next-env.d.ts

@@ -1,0 +1,3 @@
+# The Interview Assistant runs on the user's PC (npm run assistant), not on Vercel.
+# Leading "/": only the top-level folder. Without it, src/app/api/assistant (the routes the assistant calls) is skipped too.
+/assistant/

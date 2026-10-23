@@ -1,0 +1,36 @@
+# Windows installer for the Interview Assistant (npm run dist:win → release/Interview-Assistant-Setup.exe).
+appId: com.tailorbid.interviewassistant
+productName: Interview Assistant
+copyright: TailorBid
+directories:
+  output: release
+  buildResources: desktop/build
+files:
+  - package.json
+  - desktop/main.cjs
+  - desktop/config.json
+  - desktop/tray.png
+  - desktop/tray@2x.png
+  - server/**
+  - src/answerFormat.js
+  - src/selfAnswer.js
+  - dist/**
+# Plain files instead of an asar archive: PowerShell runs the server's .ps1 scripts from their paths.
+asar: false
+win:
+  target: nsis
+  icon: desktop/build/icon.png
+  # The same name for every version, so TailorBid can link to .../releases/latest/download/Interview-Assistant-Setup.exe
+  artifactName: Interview-Assistant-Setup.exe
+nsis:
+  # Installs for the current user (no admin rights), then starts the assistant.
+  oneClick: true
+  perMachine: false
+  runAfterFinish: true
+  shortcutName: Interview Assistant
+  uninstallDisplayName: Interview Assistant
+publish:
+  provider: github
+  owner: seniordev8859-ops
+  repo: callaborationandourlife
+  releaseType: release

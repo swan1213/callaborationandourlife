@@ -1,0 +1,537 @@
+@import "tailwindcss";
+
+/* Class-based dark mode: <html class="dark"> (set before paint by the theme script in layout.tsx). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ================================================================ TOKENS
+   Design language: refined neutral. Zinc-like grays, one calm accent, hairline borders.
+   - `slate-*` is retuned to a true neutral (it is the gray used throughout the app).
+   - `indigo-*` is retuned to the single brand accent (links, focus, selection, active states).
+   - Semantic colors for new code: bg-page · bg-surface · bg-raised · border-line · text-fg · text-muted · text-subtle.
+   Dark mode (bottom of file) remaps the same variables. */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+
+  --color-slate-50: #fafafa;
+  --color-slate-100: #f4f4f5;
+  --color-slate-200: #e4e4e7;
+  --color-slate-300: #d4d4d8;
+  --color-slate-400: #a1a1aa;
+  --color-slate-500: #71717a;
+  --color-slate-600: #52525b;
+  --color-slate-700: #3f3f46;
+  --color-slate-800: #27272a;
+  --color-slate-900: #18181b;
+  --color-slate-950: #09090b;
+
+  --color-indigo-50: #f3f4fd;
+  --color-indigo-100: #e6e8fa;
+  --color-indigo-200: #cdd1f4;
+  --color-indigo-300: #a9b0eb;
+  --color-indigo-400: #8590df;
+  --color-indigo-500: #6873d6;
+  --color-indigo-600: #5560c9;
+  --color-indigo-700: #4650ae;
+  --color-indigo-800: #3a428c;
+  --color-indigo-900: #30376f;
+  --color-indigo-950: #1f2347;
+
+  --radius-card: 0.75rem;
+
+  /* "backwards", not "both": a transform kept after the animation would trap fixed dialogs inside the page. */
+  --animate-page-in: page-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  --animate-fade-in: fade-in 0.18s ease-out both;
+  --animate-pop-in: pop-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-slide-in: slide-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Semantic colors resolve at runtime so they follow the theme. */
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-raised: var(--surface-raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--fg-muted);
+  --color-subtle: var(--fg-subtle);
+  --color-accent: var(--color-indigo-600);
+}
+
+:root {
+  --page: #fafafa;
+  --surface: #ffffff;
+  --surface-raised: #f4f4f5;
+  --line: #e4e4e7;
+  --line-strong: #d4d4d8;
+  --fg: #18181b;
+  --fg-muted: #71717a;
+  --fg-subtle: #a1a1aa;
+  /* Primary button: ink on paper; flips in dark mode. */
+  --btn-primary-bg: #18181b;
+  --btn-primary-bg-hover: #3f3f46;
+  --btn-primary-fg: #ffffff;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-pop: 0 0 0 1px rgb(0 0 0 / 0.04), 0 8px 24px -6px rgb(0 0 0 / 0.12), 0 2px 6px -2px rgb(0 0 0 / 0.06);
+}
+
+@keyframes toast-progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+@keyframes slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ================================================================== BASE */
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+  /* Long unbroken strings (URLs, emails, IDs) wrap instead of widening the page on phones. */
+  body {
+    overflow-wrap: anywhere;
+  }
+  table,
+  pre,
+  code,
+  .whitespace-nowrap {
+    overflow-wrap: normal;
+  }
+  html.dark {
+    color-scheme: dark; /* native date pickers, scrollbars, form controls */
+  }
+  body {
+    background-color: var(--page);
+    color: var(--fg);
+    @apply antialiased;
+    font-feature-settings: "cv11", "ss01", "ss03"; /* Inter: straight-sided digits, simpler a/l */
+    text-rendering: optimizeLegibility;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.012em;
+  }
+  ::selection {
+    background: rgb(85 96 201 / 0.2);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-indigo-500);
+    outline-offset: 2px;
+  }
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--color-indigo-600);
+  }
+  hr {
+    border-color: var(--line);
+  }
+  /* Slim, quiet scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+}
+
+/* ============================================================ COMPONENTS */
+@layer components {
+  /* ---- form controls */
+  .input {
+    @apply w-full rounded-lg border px-3 py-[7px] text-base shadow-xs sm:text-sm transition-[border-color,box-shadow,background-color] duration-150 outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-60;
+    background-color: var(--surface);
+    border-color: var(--line-strong);
+  }
+  .input:hover:not(:focus):not(:disabled) {
+    border-color: var(--color-slate-400);
+  }
+  select.input {
+    @apply cursor-pointer appearance-none pr-8;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e98' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1rem;
+  }
+  textarea.input {
+    @apply leading-relaxed;
+  }
+  .label {
+    @apply mb-1.5 block text-[13px] font-medium text-slate-700;
+  }
+  .hint {
+    @apply mt-1.5 text-xs text-slate-500;
+  }
+
+  /* ---- surfaces */
+  .card {
+    @apply rounded-xl border p-5;
+    background-color: var(--surface);
+    border-color: var(--line);
+    box-shadow: var(--shadow-card);
+  }
+  /* A card split into a header row and a body: <div class="card p-0"><div class="card-header">…</div><div class="card-body">…</div></div> */
+  .card-header {
+    @apply flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5 sm:flex-nowrap;
+    border-color: var(--line);
+  }
+  .card-title {
+    @apply text-sm font-semibold text-slate-900;
+  }
+  .card-description {
+    @apply mt-0.5 text-[13px] text-slate-500;
+  }
+  .card-body {
+    @apply p-5;
+  }
+  .card-footer {
+    @apply flex flex-wrap items-center justify-end gap-2 rounded-b-xl border-t px-5 py-3;
+    border-color: var(--line);
+    background-color: var(--page);
+  }
+  .popover {
+    @apply max-w-[calc(100vw-1rem)] rounded-xl border;
+    background-color: var(--surface);
+    border-color: var(--line);
+    box-shadow: var(--shadow-pop);
+  }
+
+  /* ---- buttons */
+  .btn {
+    @apply inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,transform] duration-150 select-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0;
+  }
+  .btn-primary {
+    background-color: var(--btn-primary-bg);
+    color: var(--btn-primary-fg);
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.12),
+      inset 0 1px 0 rgb(255 255 255 / 0.08);
+  }
+  .btn-primary:hover {
+    background-color: var(--btn-primary-bg-hover);
+  }
+  .btn-accent {
+    @apply bg-indigo-600 text-white shadow-xs hover:bg-indigo-700;
+  }
+  .btn-secondary {
+    @apply border text-slate-800 shadow-xs;
+    background-color: var(--surface);
+    border-color: var(--line-strong);
+  }
+  .btn-secondary:hover {
+    background-color: var(--surface-raised);
+  }
+  .btn-danger {
+    @apply bg-rose-600 text-white shadow-xs hover:bg-rose-700;
+  }
+  .btn-ghost {
+    @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+  }
+  .btn-sm {
+    @apply h-7 gap-1.5 rounded-md px-2.5 text-xs [&_svg]:size-3.5;
+  }
+  .btn-lg {
+    @apply h-10 px-4;
+  }
+  /* Square icon-only button: <button class="btn btn-ghost btn-icon" aria-label="…"><Icon/></button> */
+  .btn-icon {
+    @apply w-9 px-0;
+  }
+  .btn-sm.btn-icon {
+    @apply w-7;
+  }
+  .link {
+    @apply font-medium text-indigo-600 underline-offset-4 hover:underline;
+  }
+
+  /* ---- segmented control / tabs: <div class="segmented"><button aria-pressed="true">…</button></div> */
+  .segmented {
+    @apply inline-flex items-center gap-0.5 rounded-lg border p-0.5;
+    background-color: var(--surface-raised);
+    border-color: var(--line);
+  }
+  .segmented > button,
+  .segmented > a {
+    @apply inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-colors hover:text-slate-900 [&_svg]:size-3.5;
+  }
+  .segmented > [aria-pressed="true"],
+  .segmented > [aria-checked="true"],
+  .segmented > [aria-selected="true"],
+  .segmented > [aria-current="page"] {
+    @apply text-slate-900;
+    background-color: var(--surface);
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.08),
+      0 0 0 1px var(--line);
+  }
+  /* Underline tabs: <nav class="tabs"><a aria-current="page">…</a></nav> */
+  .tabs {
+    @apply flex items-center gap-5 overflow-x-auto border-b;
+    border-color: var(--line);
+  }
+  .tabs > button,
+  .tabs > a {
+    @apply -mb-px inline-flex cursor-pointer items-center gap-1.5 border-b-2 border-transparent py-2.5 text-sm font-medium whitespace-nowrap text-slate-500 transition-colors hover:text-slate-900;
+  }
+  .tabs > [aria-selected="true"],
+  .tabs > [aria-current="page"],
+  .tabs > [aria-pressed="true"] {
+    @apply text-slate-900;
+    border-bottom-color: var(--fg);
+  }
+
+  /* ---- tables */
+  .table {
+    @apply w-full text-left text-[13px];
+  }
+  /* One look for every table: quiet uppercase header, cells centred vertically, a soft row hover. */
+  .table th {
+    @apply h-10 border-b px-3 text-left text-[11px] font-semibold tracking-wide whitespace-nowrap text-slate-500 uppercase first:pl-5 last:pr-5;
+    border-color: var(--line);
+    background-color: var(--page);
+  }
+  .table td {
+    @apply border-b px-3 py-3 align-middle first:pl-5 last:pr-5;
+    border-color: var(--line);
+  }
+  /* Opt back in to top alignment for rows whose cells hold several lines that should line up at the top. */
+  .table.table-top td {
+    @apply align-top;
+  }
+  .table tbody tr {
+    @apply transition-colors duration-100;
+  }
+  .table tbody tr:hover {
+    background-color: color-mix(in srgb, var(--surface-raised) 70%, transparent);
+  }
+  .table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  /* Numbers: right-aligned, same-width digits. */
+  .table .num {
+    @apply text-right whitespace-nowrap tabular-nums;
+  }
+  /* Header stays in view inside a scrolling table container. */
+  .table thead th {
+    @apply sticky top-0 z-[1];
+  }
+  /* The cell with a row's action buttons: never wraps, sits at the right edge. */
+  .table .actions {
+    @apply w-px text-right whitespace-nowrap;
+  }
+
+  /* ---- small things */
+  .kbd {
+    @apply inline-flex h-5 min-w-5 items-center justify-center rounded border px-1 font-mono text-[10.5px] font-medium text-slate-500;
+    border-color: var(--line-strong);
+    background-color: var(--surface);
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs text-slate-700;
+    border-color: var(--line);
+    background-color: var(--surface-raised);
+  }
+  .section-label {
+    @apply text-xs font-medium tracking-wide text-slate-500 uppercase;
+  }
+  .divider {
+    @apply border-t;
+    border-color: var(--line);
+  }
+
+  /* Loading placeholders: a soft block with a light sweep across it. */
+  .skeleton {
+    @apply relative overflow-hidden rounded-md;
+    background-color: var(--surface-raised);
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.6), transparent);
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================== DARK THEME
+   The UI is built on one palette, so dark mode remaps the palette itself:
+   - the neutral scale is inverted (backgrounds dark, text light),
+   - soft tints (-50…-300) become translucent overlays,
+   - accent text shades are lifted for contrast.
+   Solid accents (rose-600, emerald-600 …) are unchanged. */
+.dark {
+  --page: #0b0b0d;
+  --surface: #131316;
+  --surface-raised: #1b1b1f;
+  --line: #26262b;
+  --line-strong: #34343a;
+  --fg: #f2f2f4;
+  --fg-muted: #8e8e98;
+  --fg-subtle: #6e6e78;
+  --btn-primary-bg: #f2f2f4;
+  --btn-primary-bg-hover: #d4d4d8;
+  --btn-primary-fg: #0b0b0d;
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-pop: 0 0 0 1px rgb(255 255 255 / 0.06), 0 12px 32px -8px rgb(0 0 0 / 0.7);
+
+  --color-slate-50: #141417;
+  --color-slate-100: #1b1b1f;
+  --color-slate-200: #26262b;
+  --color-slate-300: #34343a;
+  --color-slate-400: #6e6e78;
+  --color-slate-500: #8e8e98;
+  --color-slate-600: #a9a9b2;
+  --color-slate-700: #c8c8cf;
+  --color-slate-800: #e2e2e6;
+  --color-slate-900: #f2f2f4;
+  --color-slate-950: #000000;
+
+  --color-indigo-50: rgb(104 115 214 / 0.12);
+  --color-indigo-100: rgb(104 115 214 / 0.18);
+  --color-indigo-200: rgb(133 144 223 / 0.32);
+  --color-indigo-300: rgb(133 144 223 / 0.45);
+  --color-indigo-600: #6b76d9;
+  --color-indigo-700: #8b94e3;
+  --color-emerald-50: rgb(16 185 129 / 0.1);
+  --color-emerald-100: rgb(16 185 129 / 0.16);
+  --color-emerald-200: rgb(52 211 153 / 0.28);
+  --color-emerald-300: rgb(52 211 153 / 0.4);
+  --color-rose-50: rgb(244 63 94 / 0.1);
+  --color-rose-100: rgb(244 63 94 / 0.16);
+  --color-rose-200: rgb(251 113 133 / 0.28);
+  --color-amber-50: rgb(245 158 11 / 0.1);
+  --color-amber-100: rgb(245 158 11 / 0.16);
+  --color-amber-200: rgb(251 191 36 / 0.28);
+  --color-sky-50: rgb(14 165 233 / 0.1);
+  --color-sky-100: rgb(14 165 233 / 0.16);
+  --color-sky-200: rgb(56 189 248 / 0.28);
+  --color-violet-50: rgb(139 92 246 / 0.1);
+  --color-violet-100: rgb(139 92 246 / 0.18);
+  --color-violet-200: rgb(167 139 250 / 0.3);
+  --color-teal-50: rgb(20 184 166 / 0.1);
+  --color-teal-100: rgb(20 184 166 / 0.18);
+}
+
+/* Legacy surfaces (bg-white) follow the theme. */
+.dark .bg-white {
+  background-color: var(--surface);
+}
+.dark .bg-white\/90 {
+  background-color: rgb(19 19 22 / 0.9);
+}
+.dark .bg-white\/95 {
+  background-color: rgb(19 19 22 / 0.95);
+}
+.dark .skeleton::after {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.05), transparent);
+}
+
+/* Accent text lifted for contrast on dark surfaces */
+.dark .text-indigo-500,
+.dark .text-indigo-600 {
+  color: #959eea;
+}
+.dark .text-indigo-700,
+.dark .text-indigo-800 {
+  color: #b2b9f0;
+}
+.dark .text-emerald-600,
+.dark .text-emerald-700 {
+  color: #34d399;
+}
+.dark .text-emerald-800 {
+  color: #6ee7b7;
+}
+.dark .text-rose-600,
+.dark .text-rose-700 {
+  color: #fb7185;
+}
+.dark .text-amber-600,
+.dark .text-amber-700 {
+  color: #fbbf24;
+}
+.dark .text-amber-800 {
+  color: #fcd34d;
+}
+.dark .text-sky-700,
+.dark .text-sky-800 {
+  color: #7dd3fc;
+}
+.dark .text-violet-600,
+.dark .text-violet-700 {
+  color: #c4b5fd;
+}
+.dark .text-teal-700 {
+  color: #5eead4;
+}
+.dark .border-indigo-600 {
+  border-color: #8590df;
+}
+
+/* The resume preview is "paper": always white with black text, like the downloaded file. */
+.dark .paper {
+  background-color: #ffffff;
+  color: #000000;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+/* Sticky bars that sit on the page background (e.g. the profile editor's section nav). */
+.page-bar {
+  background-color: color-mix(in srgb, var(--page) 92%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+/* Chart series colours (validated categorical slots; dark mode uses the dark-surface steps). */
+.viz {
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #6250d6;
+}
+.dark .viz {
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #9085e9;
+}

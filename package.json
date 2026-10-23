@@ -1,0 +1,52 @@
+{
+  "name": "tailorbid",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "predev": "node -e \"require('fs').existsSync('assistant/node_modules')||require('child_process').execSync('npm --prefix assistant install',{stdio:'inherit'})\"",
+    "dev": "concurrently --kill-others-on-fail -n tailorbid,assistant -c cyan,magenta \"next dev --webpack\" \"npm --prefix assistant run companion\"",
+    "dev:web": "next dev --webpack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "seed": "node --env-file=.env.local scripts/seed.mjs",
+    "assistant": "npm --prefix assistant start",
+    "assistant:dev": "npm --prefix assistant run dev",
+    "assistant:install": "npm --prefix assistant install",
+    "assistant:test": "npm --prefix assistant test"
+  },
+  "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
+    "bcryptjs": "^3.0.3",
+    "cheerio": "^1.2.0",
+    "cloudinary": "^2.11.0",
+    "docx": "^9.7.2",
+    "jose": "^6.2.12",
+    "jszip": "^3.10.2",
+    "lucide-react": "^1.59.0",
+    "mammoth": "^1.12.3",
+    "mongoose": "^9.10.2",
+    "next": "^16.3.6",
+    "openai": "^7.23.0",
+    "pdf-lib": "^1.17.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "unpdf": "^1.8.1",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/web-push": "^3.6.4",
+    "concurrently": "^9.2.5",
+    "playwright": "^1.58.2",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.20.6",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

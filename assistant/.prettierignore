@@ -1,0 +1,6 @@
+dist
+node_modules
+package-lock.json
+# Hand-formatted: compact CSS rules and Markdown tables.
+*.css
+*.md
