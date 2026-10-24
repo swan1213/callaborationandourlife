@@ -3,9 +3,11 @@
 // Online / away / offline for every account (lib/presence.ts). The provider sends this tab's heartbeat every
 // minute (with how long the person has been idle) and keeps everyone's status for the dots next to names.
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users } from "lucide-react";
+import { MessageCircle, Users } from "lucide-react";
 import { Avatar } from "./Avatar";
+import { useChat } from "./Chat";
 
 export type PresenceStatus = "online" | "away" | "offline";
 type Person = { _id: string; name: string; role: string; avatar: string; status: PresenceStatus; lastSeenAt: string | null };
@@ -115,6 +117,8 @@ const ORDER: PresenceStatus[] = ["online", "away", "offline"];
 /** Header button: how many accounts are online, and everyone's status in a list. */
 export function OnlineMenu() {
   const { people } = usePresence();
+  // Empty when chat is off for this role (or not loaded yet): no message buttons then.
+  const { me } = useChat();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -170,6 +174,11 @@ export function OnlineMenu() {
                           {p.status === "offline" && ` · last seen ${ago(p.lastSeenAt)}`}
                         </span>
                       </span>
+                      {me && p._id !== me && (
+                        <Link href={`/chat?with=${p._id}`} className="btn btn-ghost btn-sm btn-icon" title={`Message ${p.name}`} aria-label={`Message ${p.name}`}>
+                          <MessageCircle />
+                        </Link>
+                      )}
                     </li>
                   ))}
                 </ul>

@@ -48,6 +48,7 @@ import { Logo } from "./Logo";
 import { DEFAULT_TZ, setHomeTz, setInterviewTz, zoneName } from "@/lib/viewerTz";
 import { NotificationBell, NotificationProvider } from "./Notifications";
 import { OnlineMenu, PresenceProvider } from "./Presence";
+import { ChatButton, ChatProvider } from "./Chat";
 import { AlertsProvider } from "./Alerts";
 import UpcomingInterviews from "./UpcomingInterviews";
 import UpdatePrompt from "./UpdatePrompt";
@@ -71,6 +72,7 @@ const USER_NAV: NavItem[] = [
   { href: "/interviews", label: "Interview Requests", icon: CalendarClock },
   { href: "/profiles", label: "My Profiles", icon: SquareUser },
   { href: "/notifications", label: "Notifications", icon: Bell },
+  { href: "/chat", label: "Chat", icon: MessagesSquare },
   { href: "/feedback", label: "Feedback", icon: MessageSquare },
   { href: "/help", label: "Help", icon: LifeBuoy },
   { href: "/me", label: "My Page", icon: CircleUser },
@@ -113,6 +115,7 @@ const CALLER_NAV: NavItem[] = [
   { href: "/caller/schedule", label: "My Schedule", icon: CalendarDays },
   { href: "/interview-history", label: "Interview History", icon: AudioLines },
   { href: "/notifications", label: "Notifications", icon: Bell },
+  { href: "/chat", label: "Chat", icon: MessagesSquare },
   { href: "/feedback", label: "Feedback", icon: MessageSquare },
   { href: "/help", label: "Help", icon: LifeBuoy },
   { href: "/profiles", label: "My Profiles", icon: SquareUser },
@@ -262,6 +265,7 @@ export default function AppShell({
     <AlertsProvider>
     <NotificationProvider>
       <PresenceProvider>
+      <ChatProvider>
       <div className="flex min-h-screen">
         {/* Mobile drawer backdrop */}
         {open && <div className="fixed inset-0 z-40 animate-fade-in bg-black/40 lg:hidden" onClick={() => setOpen(false)} aria-hidden />}
@@ -359,6 +363,7 @@ export default function AppShell({
             </nav>
             <div className="flex items-center gap-0.5">
               <OnlineMenu />
+              {!disabledPages.includes("chat") && <ChatButton />}
               <HelpButton role={role} />
               <NotificationBell />
             </div>
@@ -385,6 +390,7 @@ export default function AppShell({
           </main>
         </div>
       </div>
+      </ChatProvider>
       </PresenceProvider>
     </NotificationProvider>
     </AlertsProvider>

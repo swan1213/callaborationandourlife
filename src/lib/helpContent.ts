@@ -265,6 +265,21 @@ export const HELP_PAGES: HelpPage[] = [
     tips: ["Unread notifications pop up when you open the app, and new ones appear as a pop-up while you work.", "Turn on Desktop alerts in the bell to get interviews and new notifications on your computer, even when TailorBid is closed.", "When a profile you use is edited by someone else, you get a notification saying which sections changed.", "While TailorBid is open, a window asks you to reload when a profile you use changes or your access changes (profiles, Interview Requests, pages). If your role changes or you are signed out, it asks you to sign in again. Choose Later to keep working; a bar stays at the top until you reload."],
   },
   {
+    id: "chat",
+    title: "Chat",
+    path: "/chat",
+    match: ["/chat"],
+    roles: ALL,
+    summary: "Talk with the whole team in Team chat, or privately with one person.",
+    steps: [
+      { title: "Open chat", detail: "Click the chat icon in the top bar (it shows how many messages are unread) or Chat in the menu." },
+      { title: "Team chat", detail: "Everyone on the team can read and write in Team chat. It opens first." },
+      { title: "Message one person", detail: "Click New message and pick someone, or click the chat icon next to their name in Who is online. Only the two of you can read it." },
+      { title: "Send", detail: "Type and press Enter (Shift+Enter starts a new line). Links you paste, such as job links, can be clicked." },
+    ],
+    tips: ["New messages appear within a few seconds while the chat is open; elsewhere in the app a pop-up tells you who wrote.", "Scroll up and click Load earlier messages to see older history."],
+  },
+  {
     id: "feedback",
     title: "Feedback",
     path: "/feedback",
@@ -420,11 +435,11 @@ export const HELP_PAGES: HelpPage[] = [
     roles: STAFF,
     summary: "Every job link bidders generated from, listed once, with how many times it was generated and by whom.",
     steps: [
-      { title: "Filter", detail: "Date range (YYYY-MM-DD), account, profile, status, export (Not exported / Exported) and search (company, role or URL)." },
+      { title: "Filter", detail: "Date range (YYYY-MM-DD), account, profile, status, copied (Not copied / Copied) and search (company, role or URL)." },
       { title: "No repeats", detail: "A link generated more than once (by any bidder or profile) is listed once. Links that only differ by tracking parameters (utm_…, ref, source), a #fragment, a trailing slash or capital letters in the site name count as the same link; links that differ in the job id after \"?\" stay separate." },
-      { title: "Export selected", detail: "Tick job links (or click their rows) and click Export selected (TXT) above the table to download just those links, one per line, or Copy selected to copy them to the clipboard (copying does not mark them as exported)." },
-      { title: "Copy or download all", detail: "On the right of the same bar: Copy all links copies every matching link, one per line, ready to paste into Generate Resume. Download all TXT saves the same list; Download all CSV adds company, role, number of applications, bidders, first / last generated and last exported dates." },
-      { title: "See what was exported", detail: "Every download (selected, TXT or CSV) marks its links as exported. The Exported column shows when a link was last downloaded (hover for who and how many times), the Exported tile counts them, and the Export filter shows only links not exported yet. Copy all links does not mark links." },
+      { title: "Copy selected", detail: "Tick job links (or click their rows) and click Copy selected above the table to copy just those links, one per line, ready to paste into Generate Resume." },
+      { title: "Copy all", detail: "On the right of the same bar, Copy all links copies every link matching the filters, one per line. A row's copy icon copies that one link." },
+      { title: "See what was copied", detail: "Every copy marks its links Copied. The Copied column shows the last time a link was copied (hover for who and how many times), the Copied tile counts them, and the Copied filter set to Not copied shows only links nobody has copied yet." },
     ],
   },
   {

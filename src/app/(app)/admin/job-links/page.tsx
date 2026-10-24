@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useToast } from "@/components/Alerts";
-import { Copy, CopyCheck, Download, ExternalLink, FileCheck2, FileSpreadsheet, FileText, Files, Inbox, Link2, Search, X } from "lucide-react";
-import { Alert, api, Badge, DateRangeFilter, downloadFile, EmptyState, fmtStamp, limitParam, PageHeader, Pagination, rangeParams, selectOnRowClick, Spinner, Stat, TableSkeleton, useAsync, usePageSize } from "@/components/ui";
+import { ClipboardCheck, Copy, CopyCheck, ExternalLink, Files, Inbox, Link2, Search, X } from "lucide-react";
+import { Alert, api, Badge, DateRangeFilter, EmptyState, fmtStamp, limitParam, PageHeader, Pagination, rangeParams, selectOnRowClick, Spinner, Stat, TableSkeleton, useAsync, usePageSize } from "@/components/ui";
 
 type Person = { _id: string; name: string; email?: string };
 type JobLink = {
@@ -16,17 +16,17 @@ type JobLink = {
   firstAt: string;
   lastAt: string;
   applicationId: string;
-  exportedAt: string | null;
-  exportedBy: string;
-  exportCount: number;
+  copiedAt: string | null;
+  copiedBy: string;
+  copyCount: number;
 };
-type Resp = { items: JobLink[]; total: number; applications: number; duplicates: number; exported: number; page: number; limit: number };
+type Resp = { items: JobLink[]; total: number; applications: number; duplicates: number; copied: number; page: number; limit: number };
 
 export default function JobLinksPage() {
   const [user, setUser] = useState("");
   const [profile, setProfile] = useState("");
   const [status, setStatus] = useState("");
-  const [exported, setExported] = useState("");
+  const [copiedFilter, setCopiedFilter] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [q, setQ] = useState("");
@@ -46,7 +46,7 @@ export default function JobLinksPage() {
     if (user) p.set("user", user);
     if (profile) p.set("profile", profile);
     if (status) p.set("status", status);
-    if (exported) p.set("exported", exported);
+    if (copiedFilter) p.set("copied", copiedFilter);
     if (q) p.set("q", q);
     return p;
   };
@@ -56,7 +56,7 @@ export default function JobLinksPage() {
     p.set("page", String(page));
     p.set("limit", limitParam(pageSize));
     return api<Resp>(`/api/admin/job-links?${p}`);
-  }, [user, profile, status, exported, from, to, q, page, pageSize]);
+  }, [user, profile, status, copiedFilter, from, to, q, page, pageSize]);
 
   const reset = (fn: () => void) => {
     fn();
@@ -66,56 +66,34 @@ export default function JobLinksPage() {
   const items = list.data?.items ?? [];
   const offset = pageSize === "all" ? 0 : (page - 1) * pageSize;
 
-  async function exportList(format: "csv" | "txt") {
-    setBusy(format);
-    try {
-      const p = params();
-      p.set("format", format);
-      await downloadFile(`/api/admin/job-links?${p}`, `job_links.${format}`);
-      list.reload();
-    } catch (e) {
-      toast.error("Download failed", (e as Error).message);
-    } finally {
-      setBusy("");
-    }
-  }
-
-  async function exportSelected() {
-    if (!selected.size) return toast.warning("No job links selected", "Tick the job links you want to export, then try again.");
-    setBusy("selected");
-    try {
-      await downloadFile("/api/admin/job-links", "job_links_selected.txt", { urls: [...selected] });
-      toast.success(`${selected.size} job link(s) exported`, "They are now marked as exported.");
-      setSelected(new Set());
-      list.reload();
-    } catch (e) {
-      toast.error("Export failed", (e as Error).message);
-    } finally {
-      setBusy("");
-    }
-  }
+  /** Marks links the page copied as copied (shown in the Copied column). */
+  const markCopied = (urls: string[]) =>
+    api("/api/admin/job-links", { method: "POST", json: { urls } })
+      .then(() => list.reload())
+      .catch((e) => toast.warning("Copied, but not marked as copied", (e as Error).message));
 
   async function copySelected() {
     if (!selected.size) return toast.warning("No job links selected", "Tick the job links you want to copy, then try again.");
+    const urls = [...selected];
     try {
-      await navigator.clipboard.writeText([...selected].join("\r\n"));
-      toast.success(`${selected.size} job link(s) copied`, "One per line, ready to paste into Generate Resume.");
+      await navigator.clipboard.writeText(urls.join("\r\n"));
     } catch {
-      toast.error("Copy failed");
+      return toast.error("Copy failed");
     }
+    toast.success(`${urls.length} job link(s) copied`, "One per line, ready to paste into Generate Resume. They are now marked as copied.");
+    setSelected(new Set());
+    markCopied(urls);
   }
 
   async function copyAll() {
     setBusy("copy");
     try {
       const p = params();
-      p.set("format", "txt");
       p.set("copy", "1");
-      const res = await fetch(`/api/admin/job-links?${p}`);
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Copy failed (${res.status})`);
-      const text = await res.text();
-      await navigator.clipboard.writeText(text);
-      toast.success(`${text ? text.split("\r\n").length : 0} job link(s) copied`, "One per line, ready to paste into Generate Resume.");
+      const { urls } = await api<{ urls: string[] }>(`/api/admin/job-links?${p}`);
+      await navigator.clipboard.writeText(urls.join("\r\n"));
+      toast.success(`${urls.length} job link(s) copied`, "One per line, ready to paste into Generate Resume. They are now marked as copied.");
+      list.reload();
     } catch (e) {
       toast.error("Copy failed", (e as Error).message);
     } finally {
@@ -134,11 +112,12 @@ export default function JobLinksPage() {
   async function copyOne(url: string) {
     try {
       await navigator.clipboard.writeText(url);
-      setCopied(url);
-      setTimeout(() => setCopied((c) => (c === url ? "" : c)), 1500);
     } catch {
-      toast.error("Copy failed");
+      return toast.error("Copy failed");
     }
+    setCopied(url);
+    setTimeout(() => setCopied((c) => (c === url ? "" : c)), 1500);
+    markCopied([url]);
   }
 
   const d = list.data;
@@ -150,7 +129,7 @@ export default function JobLinksPage() {
         <Stat label="Unique job links" value={d?.total ?? "—"} icon={Link2} />
         <Stat label="Applications" value={d?.applications ?? "—"} icon={Files} hint="with a job link" />
         <Stat label="Repeats removed" value={d?.duplicates ?? "—"} icon={Copy} hint="same link generated again" />
-        <Stat label="Exported" value={d?.exported ?? "—"} icon={FileCheck2} hint="included in a TXT/CSV download" />
+        <Stat label="Copied" value={d?.copied ?? "—"} icon={ClipboardCheck} hint="copied at least once" />
       </div>
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
@@ -187,11 +166,11 @@ export default function JobLinksPage() {
           </select>
         </div>
         <div className="w-full sm:w-40">
-          <label className="label">Export</label>
-          <select className="input" value={exported} onChange={(e) => reset(() => setExported(e.target.value))}>
+          <label className="label">Copied</label>
+          <select className="input" value={copiedFilter} onChange={(e) => reset(() => setCopiedFilter(e.target.value))}>
             <option value="">All</option>
-            <option value="no">Not exported</option>
-            <option value="yes">Exported</option>
+            <option value="no">Not copied</option>
+            <option value="yes">Copied</option>
           </select>
         </div>
         <div className="min-w-0 flex-1 basis-full sm:min-w-56 sm:basis-auto">
@@ -205,10 +184,7 @@ export default function JobLinksPage() {
 
       <div className="card overflow-hidden p-0">
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-3 py-2.5 sm:px-4">
-          <button className="btn btn-primary btn-sm" onClick={exportSelected} disabled={!!busy || !selected.size}>
-            {busy === "selected" ? <Spinner className="size-3.5" /> : <Download />} Export selected (TXT){selected.size ? ` (${selected.size})` : ""}
-          </button>
-          <button className="btn btn-secondary btn-sm" onClick={copySelected} disabled={!!busy || !selected.size} title="Copy the ticked links, one per line (not marked as exported)">
+          <button className="btn btn-primary btn-sm" onClick={copySelected} disabled={!!busy || !selected.size} title="Copy the ticked links, one per line, and mark them as copied">
             <Copy /> Copy selected{selected.size ? ` (${selected.size})` : ""}
           </button>
           {selected.size > 0 && (
@@ -217,17 +193,11 @@ export default function JobLinksPage() {
             </button>
           )}
           <span className={`text-xs ${selected.size ? "text-slate-500" : "text-slate-400"}`}>
-            {selected.size ? `${selected.size} selected` : "No job links selected · tick rows to export them as a TXT file"}
+            {selected.size ? `${selected.size} selected` : "No job links selected · tick rows to copy them"}
           </span>
           <div className="ml-auto flex flex-wrap items-center gap-1.5">
-            <button className="btn btn-secondary btn-sm" onClick={copyAll} disabled={!!busy || !d?.total} title="Copy every listed link (not marked as exported)">
+            <button className="btn btn-secondary btn-sm" onClick={copyAll} disabled={!!busy || !d?.total} title="Copy every listed link and mark them as copied">
               {busy === "copy" ? <Spinner className="size-3.5" /> : <Copy />} Copy all links
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={() => exportList("txt")} disabled={!!busy || !d?.total} title="Download every listed link and mark them as exported">
-              {busy === "txt" ? <Spinner className="size-3.5" /> : <FileText />} Download all TXT
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={() => exportList("csv")} disabled={!!busy || !d?.total} title="Download every listed link and mark them as exported">
-              {busy === "csv" ? <Spinner className="size-3.5" /> : <FileSpreadsheet />} Download all CSV
             </button>
           </div>
         </div>
@@ -260,7 +230,7 @@ export default function JobLinksPage() {
                   <th className="num">Applications</th>
                   <th>Bidders</th>
                   <th>Last generated</th>
-                  <th>Exported</th>
+                  <th>Copied</th>
                   <th className="actions">
                     <span className="sr-only">Actions</span>
                   </th>
@@ -297,10 +267,10 @@ export default function JobLinksPage() {
                       {fmtStamp(l.lastAt)}
                     </td>
                     <td className="whitespace-nowrap">
-                      {l.exportedAt ? (
-                        <div title={`Last exported ${fmtStamp(l.exportedAt)}${l.exportedBy ? ` by ${l.exportedBy}` : ""} · ${l.exportCount} download(s)`}>
-                          <Badge value="active" label={l.exportCount > 1 ? `Exported ×${l.exportCount}` : "Exported"} />
-                          <div className="mt-0.5 font-mono text-[11px] text-slate-500">{fmtStamp(l.exportedAt)}</div>
+                      {l.copiedAt ? (
+                        <div title={`Last copied ${fmtStamp(l.copiedAt)}${l.copiedBy ? ` by ${l.copiedBy}` : ""} · copied ${l.copyCount} time(s)`}>
+                          <Badge value="active" label={l.copyCount > 1 ? `Copied ×${l.copyCount}` : "Copied"} />
+                          <div className="mt-0.5 font-mono text-[11px] text-slate-500">{fmtStamp(l.copiedAt)}</div>
                         </div>
                       ) : (
                         <span className="text-xs text-slate-400">Not yet</span>

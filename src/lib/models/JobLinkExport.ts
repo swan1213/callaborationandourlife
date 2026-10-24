@@ -1,16 +1,17 @@
 import { Schema, type Model, Types } from "mongoose";
 import { defineModel } from "./define";
 
-/** A job link downloaded from the Job links page (TXT/CSV export), once per link across all staff. */
+/** A job link copied from the Job links page, once per link across all staff. */
 const JobLinkExportSchema = new Schema(
   {
     /** lib/links.ts urlKey, so the same posting matches however it was pasted. */
     urlKey: { type: String, required: true, unique: true },
     url: { type: String, default: "" },
     firstExportedAt: { type: Date, default: Date.now },
+    /** Last time it was copied, and by whom. */
     exportedAt: { type: Date, default: Date.now },
     exportedBy: { type: Types.ObjectId, ref: "User", default: null },
-    /** How many downloads included this link. */
+    /** How many copies included this link. */
     count: { type: Number, default: 0 },
   },
   { timestamps: false }
@@ -19,8 +20,8 @@ const JobLinkExportSchema = new Schema(
 export type JobLinkExportFields = { urlKey: string; url: string; firstExportedAt: Date; exportedAt: Date; exportedBy: Types.ObjectId | null; count: number };
 export const JobLinkExport: Model<JobLinkExportFields> = defineModel("JobLinkExport", JobLinkExportSchema);
 
-/** Records that these links were just downloaded by `by`. */
-export async function markExported(links: { url: string; urlKey: string }[], by: Types.ObjectId) {
+/** Records that these links were just copied by `by`. */
+export async function markCopied(links: { url: string; urlKey: string }[], by: Types.ObjectId) {
   if (!links.length) return;
   const now = new Date();
   await JobLinkExport.bulkWrite(
