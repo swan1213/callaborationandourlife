@@ -15,6 +15,8 @@ const FIRST_QUESTION = "Tell me about yourself.";
 /** Recent turns sent back each time: enough context for follow-ups, small enough to start answering fast. */
 const MAX_TURNS = 12;
 const MAX_CHARS = 4000;
+/** Words kept back while streaming: the longest phrase humanize() replaces is eight words. */
+const HOLD_WORDS = 8;
 
 /**
  * POST { messages: [{ role: "user" | "assistant", content }] } → the answer as streamed plain text
@@ -58,8 +60,8 @@ export const POST = handler(async (req: Request, { params }: Ctx) => {
     throw new HttpError(502, `OpenAI error: ${msg}`);
   }
 
-  // Sent as it is written, so the answer starts showing in about a second. Text goes out up to the last space, cleaned
-  // (no long dashes or bold, AI-sounding words replaced) a few words at a time.
+  // Sent as it is written, so the answer starts showing in about a second. Text goes out cleaned (no long dashes or
+  // bold, AI-sounding words replaced), a few words behind the model.
   const tidy = (t: string) => humanize(t.replace(/[—–]/g, ", ").replace(/\*\*/g, ""));
   const encoder = new TextEncoder();
   const out = new ReadableStream<Uint8Array>({
@@ -69,9 +71,14 @@ export const POST = handler(async (req: Request, { params }: Ctx) => {
       try {
         for await (const chunk of stream) {
           pending += chunk.choices[0]?.delta?.content ?? "";
-          const cut = pending.search(/\s\S*$/);
+          // Clean the words held back so far (not a half-written last word), then send all but the last few, so a
+          // phrase the clean-up replaces is always whole when it is cleaned. Cleaning twice changes nothing.
+          const end = pending.search(/\s\S*$/);
+          if (end >= 0) pending = tidy(pending.slice(0, end + 1)) + pending.slice(end + 1);
+          const gaps = [...pending.matchAll(/\s/g)];
+          const cut = gaps.length > HOLD_WORDS ? gaps[gaps.length - 1 - HOLD_WORDS].index : -1;
           if (cut > 0) {
-            const text = tidy(pending.slice(0, cut + 1));
+            const text = pending.slice(0, cut + 1);
             pending = pending.slice(cut + 1);
             if (text) {
               controller.enqueue(encoder.encode(sent ? text : text.trimStart()));
@@ -108,14 +115,33 @@ HOW TO ANSWER
   numbers from your resume), and how it connects to this job's needs.
 - "Tell me about yourself": who you are now, the path through your recent roles with one or two concrete wins each,
   what you are strongest at, and why this role at this company is the next step.
-- Spoken style: plain words, contractions (I've, I'd), varied sentence length, natural transitions. Short paragraphs.
-  No headings, bullet points, markdown, emojis or long dashes. Never say you are an AI or mention the documents below.
+
+SOUND LIKE A REAL PERSON TALKING, NOT A WRITTEN DOCUMENT
+- Talk the way a confident, friendly person does in a real interview: plain everyday words, contractions (I've, I'd,
+  it's, didn't), a mix of short and long sentences, the odd short fragment ("Big learning for me."). Phrases like
+  "honestly", "what I found was", "I ended up", "the tricky part was" are fine; don't overdo them.
+- Answer the question in your first sentence, the way people do ("Yeah, quite a bit, mostly on the utility side.").
+  Never open with "Certainly", "Absolutely", "Great question" or by repeating the question. Vary how answers start.
+- Build the answer around one or two specific stories from your resume: what the situation was, what went wrong or was
+  hard, what you actually did, and how it turned out. Do NOT cover every category in turn ("For EPCs... With
+  utilities... For consulting engineers...") or list your skills; pick the best example and go deeper on it.
+- Be modest and concrete instead of praising yourself: no "extensive experience", "strong", "expert", "exceptional",
+  "I'm confident that", "I believe my experience makes me". Show it with what you did. Mention a mistake, trade-off or
+  lesson when it fits.
+- Say numbers the way people say them out loud ("about 30 percent", "a bit over five million").
+- End naturally. No wrap-up sentence that sums up the answer or says why you're a great fit ("Overall...",
+  "In summary...", "That's why I'm well suited..."). At most one plain sentence tying it to this role, and only if it
+  adds something.
+- Short paragraphs. No headings, bullet points, numbered lists, markdown, emojis or long dashes. Never say you are an
+  AI or mention the documents below.
 - Only use facts from your resume and background below: employers, titles, dates, technologies and numbers. Never
   invent a company, project, metric or skill. If you have no direct experience with something, say so honestly and
   explain the closest thing you have done and how you would pick it up.
 - Never use: leverage, utilize, spearhead, synergy, delve, robust, seamless, cutting-edge, innovative, dynamic,
   fast-paced, results-driven, passionate, thrilled, excited to, landscape, realm, testament, elevate, foster, harness,
-  empower, pivotal, game-changer, transformative, holistic, navigate, streamline, "proven track record".
+  empower, pivotal, game-changer, transformative, holistic, navigate, streamline, "proven track record", extensively,
+  comprehensive, strategic, ensuring, "align with", "a wide range of", "various", "key role", "in today's",
+  "stakeholders" (unless the interviewer said it), "drive value", "deliver value".
 
 YOUR RESUME FOR THIS APPLICATION (JSON)
 ${JSON.stringify(resume).slice(0, 12000)}

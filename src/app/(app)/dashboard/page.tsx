@@ -128,7 +128,8 @@ export default function GeneratePage() {
         <Alert kind="info">No profiles are assigned to you yet. Ask an administrator to assign one.</Alert>
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
-          <div className="min-w-0 space-y-3 lg:col-span-1">
+          {/* The list scrolls on its own (and stays beside the form on wide screens) instead of stretching the page. */}
+          <div className="min-w-0 space-y-3 lg:sticky lg:top-20 lg:col-span-1 lg:self-start">
             <StepTitle n={1} title="Choose a profile" />
             <div className="relative">
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
@@ -141,7 +142,8 @@ export default function GeneratePage() {
                 aria-label="Search profiles"
               />
             </div>
-            <div className="space-y-2">
+            {/* p-1 / -m-1 keep the selected card's focus ring from being clipped by the scroll box. */}
+            <div className="-m-1 max-h-96 space-y-2 overflow-y-auto overscroll-contain p-1 lg:max-h-[calc(100dvh-12.5rem)]">
               {!shownProfiles.length && <p className="px-1 py-4 text-center text-sm text-slate-500">No profile matches &ldquo;{profileQ.trim()}&rdquo;.</p>}
               {shownProfiles.map((p) => {
                 const full = p.monthlyQuota > 0 && p.usedThisMonth >= p.monthlyQuota;
