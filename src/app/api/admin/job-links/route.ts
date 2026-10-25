@@ -32,7 +32,7 @@ type JobLink = {
 
 /**
  * Every job link bidders generated from, once each: links that only differ by tracking parameters, #fragment,
- * trailing slash or host case (lib/links.ts urlKey) count as one. Newest first.
+ * "www.", letter case or an /apply page (lib/links.ts urlKey) count as one. Newest first.
  * `?copy=1` returns every matching URL (Copy all links) and marks them as copied.
  */
 export const GET = handler(async (req: Request) => {
@@ -70,16 +70,19 @@ export const GET = handler(async (req: Request) => {
     if (uid && !link.bidders.some((b) => b._id === uid)) link.bidders.push({ _id: uid, name: names.get(uid) ?? "Deleted account" });
   }
 
-  const marks = await JobLinkExport.find({ urlKey: { $in: [...links.keys()] } }).lean<JobLinkExportFields[]>();
+  // Copy marks are matched by re-keying their URL, so marks saved under an older urlKey still count; several marks
+  // that now fall on one link are combined (latest copy, total count).
+  const marks = await JobLinkExport.find().select("url urlKey exportedAt exportedBy count").lean<JobLinkExportFields[]>();
   const copierIds = [...new Set(marks.map((e) => String(e.exportedBy ?? "")).filter((id) => id && !names.has(id)))];
   if (copierIds.length)
     for (const u of await User.find({ _id: { $in: copierIds } }).select("name").lean<{ _id: Types.ObjectId; name: string }[]>()) names.set(String(u._id), u.name);
   for (const e of marks) {
-    const link = links.get(e.urlKey);
+    const link = links.get(urlKey(e.url || e.urlKey));
     if (!link) continue;
+    link.copyCount += e.count;
+    if (link.copiedAt && link.copiedAt >= e.exportedAt) continue;
     link.copiedAt = e.exportedAt;
     link.copiedBy = e.exportedBy ? names.get(String(e.exportedBy)) ?? "Deleted account" : "";
-    link.copyCount = e.count;
   }
 
   // ?copied=yes|no narrows to links already copied / never copied.
