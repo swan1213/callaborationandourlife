@@ -25,6 +25,17 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-25-9",
+    date: "2026-10-25",
+    title: "Clear copied on Job links",
+    changes: [
+      {
+        text: "Job links has a Clear copied button: tick links to mark just those as not copied for the profile, or click it with nothing ticked to clear the profile's whole copy history. It asks first; other profiles are not affected.",
+        roles: ["admin", "user"],
+      },
+    ],
+  },
+  {
     id: "2026-10-25-8",
     date: "2026-10-25",
     title: "Save to folder, profile search and a cleaner interview chat",

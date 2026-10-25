@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useToast } from "@/components/Alerts";
+import { useConfirm, useToast } from "@/components/Alerts";
 import SearchSelect from "@/components/SearchSelect";
-import { Check, CircleCheck, ClipboardCheck, Copy, CopyCheck, ExternalLink, IdCard, Inbox, Link2, ListTodo, Search, X } from "lucide-react";
+import { Check, CircleCheck, ClipboardCheck, Copy, CopyCheck, Eraser, ExternalLink, IdCard, Inbox, Link2, ListTodo, Search, X } from "lucide-react";
 import {
   Alert,
   api,
@@ -73,6 +73,7 @@ export default function JobLinksPage() {
   // Selected job links, keyed by URL (each URL is listed once). Kept across pages and filters, cleared with the profile.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const toast = useToast();
+  const confirm = useConfirm();
 
   const profiles = useAsync(() => api<{ profiles: ProfileOpt[] }>("/api/admin/profiles").then((r) => r.profiles), []);
   const [profileQ, setProfileQ] = useState("");
@@ -154,6 +155,32 @@ export default function JobLinksPage() {
       list.reload();
     } catch (e) {
       toast.error("Copy failed", (e as Error).message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  /** Clear copied: the ticked links when some are ticked, otherwise this profile's whole copy history. */
+  async function clearCopied() {
+    const urls = [...selected];
+    const name = profileLabel || "this profile";
+    const ok = await confirm({
+      title: urls.length ? `Clear copied for ${urls.length} job link(s)?` : `Clear all copy history for ${name}?`,
+      message: urls.length
+        ? `The ticked job links will show as not copied for ${name} again. Other profiles are not affected.`
+        : `Every job link will show as not copied for ${name} again, and the Copied count goes back to 0. Other profiles are not affected. This can't be undone.`,
+      confirmLabel: "Clear copied",
+      danger: true,
+    });
+    if (!ok) return;
+    setBusy("clear");
+    try {
+      const r = await api<{ cleared: number }>("/api/admin/job-links", { method: "DELETE", json: urls.length ? { profile, urls } : { profile } });
+      toast.success(r.cleared ? `Copied cleared for ${r.cleared} job link(s)` : "Nothing to clear", r.cleared ? `They show as not copied for ${name} again.` : undefined);
+      setSelected(new Set());
+      list.reload();
+    } catch (e) {
+      toast.error("Couldn't clear copied", (e as Error).message);
     } finally {
       setBusy("");
     }
@@ -313,6 +340,15 @@ export default function JobLinksPage() {
                     {selected.size ? `${selected.size} selected` : "No job links selected · tick rows to copy them"}
                   </span>
                   <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                    <button
+                      className="btn btn-ghost btn-sm text-rose-600"
+                      onClick={clearCopied}
+                      disabled={!!busy || (!selected.size && !d?.copied)}
+                      title={selected.size ? "Mark the ticked links as not copied for this profile" : "Mark every link as not copied for this profile"}
+                    >
+                      {busy === "clear" ? <Spinner className="size-3.5" /> : <Eraser />} Clear copied
+                      {selected.size ? ` (${selected.size})` : ""}
+                    </button>
                     <button
                       className="btn btn-secondary btn-sm"
                       onClick={copyAll}

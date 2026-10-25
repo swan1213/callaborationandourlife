@@ -443,6 +443,7 @@ export const HELP_PAGES: HelpPage[] = [
       { title: "Copy selected", detail: "Tick job links (or click their rows) and click Copy selected above the table to copy just those links, one per line, ready to paste into Generate Resume." },
       { title: "Copy all", detail: "On the right of the same bar, Copy all links copies every link matching the filters, one per line. A row's copy icon copies that one link." },
       { title: "See what was copied", detail: "Copies are tracked per profile: copying links for one profile doesn't mark them for another. The Copied column shows the last time a link was copied for this profile (hover for who and how many times), and the Copied filter set to Not copied shows only links not copied for it yet." },
+      { title: "Clear copied", detail: "Copied the wrong links? Tick them and click Clear copied to mark just those as not copied for this profile, or click Clear copied with nothing ticked to clear the profile's whole copy history (the Copied count goes back to 0). It asks first, and other profiles are not affected." },
     ],
     tips: ["The page remembers the last profile you picked in this browser."],
   },

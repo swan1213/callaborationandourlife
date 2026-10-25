@@ -135,3 +135,27 @@ export const POST = handler(async (req: Request) => {
   await markCopied(profile, urls.map((url) => ({ url, urlKey: urlKey(url) })), staff._id);
   return NextResponse.json({ ok: true, count: urls.length });
 });
+
+/**
+ * `{ profile, urls? }` — clears "copied" for the profile (Clear copied): only those job links when `urls` is given,
+ * otherwise the profile's whole copy history. The links themselves stay; they just count as not copied again.
+ */
+export const DELETE = handler(async (req: Request) => {
+  const staff = await requireStaff();
+  const body = await req.json().catch(() => null);
+  const profile = profileParam(staff, body?.profile);
+  if (body?.urls === undefined) {
+    const { deletedCount } = await JobLinkCopy.deleteMany({ profile });
+    return NextResponse.json({ ok: true, cleared: deletedCount });
+  }
+  const urls = Array.isArray(body.urls) ? [...new Set((body.urls as unknown[]).filter((u): u is string => typeof u === "string").map((u) => u.trim()).filter(Boolean))] : [];
+  if (!urls.length) throw new HttpError(400, "No job links selected");
+  if (urls.length > MAX_SCAN) throw new HttpError(400, `Select ${MAX_SCAN} job links or fewer`);
+  // Copies are matched by urlKey (also re-keyed from their URL, as GET does), so every spelling of a link is cleared.
+  const keys = new Set(urls.map(urlKey));
+  const ids = (await JobLinkCopy.find({ profile }).select("url urlKey").lean<(JobLinkCopyFields & { _id: Types.ObjectId })[]>())
+    .filter((c) => keys.has(c.urlKey) || keys.has(urlKey(c.url || c.urlKey)))
+    .map((c) => c._id);
+  const { deletedCount } = await JobLinkCopy.deleteMany({ _id: { $in: ids } });
+  return NextResponse.json({ ok: true, cleared: deletedCount });
+});
