@@ -3,7 +3,7 @@ import { samplingFor, type ResolvedOpenAI } from "./openaiKeys";
 import type { ProfileFields } from "./models/Profile";
 import { DEFAULT_RESUME_PROMPT } from "./resumePrompt";
 import { RESUME_HEADLINE } from "./headline";
-import { scoreCoverLetter, scoreResume } from "./matchScore";
+import { jobKeywords, mentionsKeyword, resumeText, scoreCoverLetter, scoreResume } from "./matchScore";
 
 export type ResumeExperience = {
   company: string;
@@ -511,10 +511,12 @@ Reply with the same JSON shape you are given: {"titleLine", "summary", "skills":
 Keep every experience entry in the same order with the same title and company, and the same number of bullets or more.
 
 Make these changes:
-- Every keyword listed under MISSING must appear in the skills, spelled exactly as listed (in the best-fitting
-  category), and, for the REQUIRED ones, also in at least one experience bullet or the summary, worked into what that
-  role actually did. Inside sentences, use normal capitalization ("system design", not "System design"); keep the
-  exact spelling of product names (SQL, CI/CD, Docker). Add the other missing keywords to bullets too where the role's work supports them.
+- Every keyword listed under MISSING (REQUIRED) must appear in the skills, spelled exactly as listed (in the
+  best-fitting category), and also in at least one experience bullet or the summary, worked into what that role
+  actually did. Inside sentences, use normal capitalization ("system design", not "System design"); keep the exact
+  spelling of product names (SQL, CI/CD, Docker).
+- MISSING (OTHER) keywords are optional: add one only where the candidate's real work clearly supports it. A real
+  person's resume never matches every line of a posting, so leaving several of them out is expected and fine.
 - titleLine: the job title from the posting ("${job.title || "see the job description"}"). The summary names that
   title and the posting's most important skills in its first sentence.
 ${quantified < 0.6 ? "- At least 60% of the experience bullets show a concrete number (percent, time saved, scale, users, requests, cost).\n" : ""}- Cover letter: mention ${letterMissing.length ? letterMissing.slice(0, 6).join(", ") : "the posting's top skills"}${/\d/.test(coverLetter) ? "" : " and one concrete result with a number"}; keep its length, greeting and sign-off.
@@ -579,6 +581,50 @@ ALSO USE IF THEY FIT: ${before.softMissing.join(", ") || "none"}`;
     console.error("ATS revision failed; keeping the first draft", e);
   }
   return result;
+}
+
+/** At most this share of the posting's keywords stays in the resume: a 100% match reads as written by AI. */
+const MAX_KEYWORD_COVERAGE = 0.85;
+
+/**
+ * Leaves a few optional job keywords out of the resume, so it covers about MAX_KEYWORD_COVERAGE of the posting
+ * instead of all of it. Only keywords that are not required, are mentioned once in the posting, are not part of the
+ * job title and appear only in the skills list can go (bullets and the summary are never edited). The ones the posting
+ * weighs least go first, in random order among equals, so resumes don't all drop the same ones. A removal is kept
+ * only when it takes out that one keyword and nothing else (removing "Lambda" must not also lose "AWS").
+ */
+export function trimKeywordCoverage(resume: ResumeContent, jd: string, jobTitle: string): ResumeContent {
+  const { hard } = jobKeywords(jd);
+  const covered = (r: ResumeContent) => {
+    const text = resumeText(r);
+    return new Set(hard.filter((k) => [k.term, ...(k.alts ?? [])].some((t) => mentionsKeyword(text, t))).map((k) => k.term));
+  };
+  let current = covered(resume);
+  let extra = current.size - Math.ceil(hard.length * MAX_KEYWORD_COVERAGE);
+  if (extra <= 0) return resume;
+
+  const title = jobTitle.toLowerCase();
+  const optional = hard
+    .filter((k) => current.has(k.term) && !k.required && k.mentions < 2 && !title.includes(k.term.toLowerCase()))
+    .map((k) => ({ k, tie: Math.random() }))
+    .sort((a, b) => a.k.weight - b.k.weight || a.tie - b.tie)
+    .map(({ k }) => k);
+
+  let out = resume;
+  for (const k of optional) {
+    if (extra <= 0) break;
+    const skills = out.skills
+      .map((g) => ({ ...g, items: g.items.filter((item) => ![k.term, ...(k.alts ?? [])].some((t) => mentionsKeyword(item, t))) }))
+      .filter((g) => g.items.length);
+    const next = { ...out, skills };
+    const after = covered(next);
+    const lost = [...current].filter((t) => !after.has(t));
+    if (lost.length !== 1 || lost[0] !== k.term) continue; // still mentioned elsewhere, or other keywords went with it
+    out = next;
+    current = after;
+    extra--;
+  }
+  return out;
 }
 
 /**
@@ -713,6 +759,10 @@ export async function generateApplication(
     completionTokens += pass.completionTokens;
     ats = { before: pass.before, after: pass.after, revised: pass.revised };
   }
+
+  const title = parsed.role || job.title || "";
+  resume = trimKeywordCoverage(resume, job.text, title);
+  if (ats) ats.after = scoreResume(resume, job.text, title).score;
 
   const letter = cleanLetter(letterParagraphBreaks(parsed.coverLetter))
     // "Dear Hiring Manager" → "Dear Hiring Manager," (traditional business letter)
