@@ -25,6 +25,18 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-25-2",
+    date: "2026-10-25",
+    title: "Easier profile picking on Job links",
+    changes: [
+      {
+        text: "Job links now shows profiles as cards on the left, like Generate, with a Search profiles box to find one by name or title. The list stays in view while you scroll the job links.",
+        roles: ["admin", "user"],
+      },
+    ],
+    steps: [{ text: "Open Manage → Job Links, type a name in Search profiles and click the profile.", roles: ["admin", "user"] }],
+  },
+  {
     id: "2026-10-25",
     date: "2026-10-25",
     title: "Team chat and a new Job links page",
