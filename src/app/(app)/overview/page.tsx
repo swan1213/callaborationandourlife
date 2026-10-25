@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { CalendarCheck, FileText, Minus, Plus, Send, TrendingDown, TrendingUp } from "lucide-react";
-import { Alert, api, PageHeader, PageSkeleton, Segmented, useAsync } from "@/components/ui";
+import { Alert, api, PageHeader, PageSkeleton, Segmented, useAsync, useClientPaging } from "@/components/ui";
 import { zoneName } from "@/lib/viewerTz";
 
 type Bucket = { key: string; label: string; created: number; submitted: number; interviews: number };
@@ -21,6 +21,9 @@ const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : "â€
 export default function OverviewPage() {
   const stats = useAsync(() => api<Stats>("/api/me/stats"), []);
   const [period, setPeriod] = useState<"weeks" | "months">("weeks");
+  // Breakdown rows, newest first (the current week / month leads).
+  const newestFirst = stats.data ? [...(period === "weeks" ? stats.data.weeks : stats.data.months)].reverse() : [];
+  const { pageRows: breakdownRows, pager } = useClientPaging(newestFirst, "overview-breakdown");
 
   if (stats.error) return <Alert>{stats.error}</Alert>;
   if (!stats.data) return <PageSkeleton stats />;
@@ -95,11 +98,11 @@ export default function OverviewPage() {
               </tr>
             </thead>
             <tbody>
-              {[...buckets].reverse().map((b, i) => (
-                <tr key={b.key} className={i === 0 ? "font-medium" : ""}>
+              {breakdownRows.map((b) => (
+                <tr key={b.key} className={b.key === newestFirst[0]?.key ? "font-medium" : ""}>
                   <td className="whitespace-nowrap">
                     {b.label}
-                    {i === 0 && <span className="chip ml-2 font-normal">{period === "weeks" ? "this week" : "this month"}</span>}
+                    {b.key === newestFirst[0]?.key && <span className="chip ml-2 font-normal">{period === "weeks" ? "this week" : "this month"}</span>}
                   </td>
                   <td className="num">{b.created}</td>
                   <td className="num">{b.submitted}</td>
@@ -121,6 +124,7 @@ export default function OverviewPage() {
             </tfoot>
           </table>
         </div>
+        <div className="border-t border-slate-200 px-4 pb-3">{pager}</div>
       </section>
     </div>
   );

@@ -32,7 +32,7 @@ import {
   type Interview,
 } from "./interviews";
 import { CalendarDays, CalendarX, CircleCheck, ClipboardCheck, Clock, Eye, Filter, Flag, Globe, Hourglass, Sparkles, UserPlus } from "lucide-react";
-import { Alert, api, EmptyState, Modal, Spinner, useAsync, type IconType } from "./ui";
+import { Alert, api, EmptyState, Modal, Spinner, useAsync, useClientPaging, type IconType } from "./ui";
 import { useToast } from "./Alerts";
 import { PresenceDot } from "./Presence";
 import { DEFAULT_TZ, getHomeTz, getInterviewTz, setViewerTz, timeZoneChoices, tzDayKey } from "@/lib/viewerTz";
@@ -209,16 +209,23 @@ export default function InterviewBoard({
     setListStatus(status);
     setMode("list");
   };
-  // Month agenda grouped by day ("Today", "Tomorrow", …).
+  // Month agenda, a page at a time, grouped by day ("Today", "Tomorrow", …). A day split across pages shows its
+  // full count on each page.
+  const { pageRows: agendaPage, pager: agendaPager } = useClientPaging(agenda, "interview-agenda");
   const agendaDays = useMemo(() => {
-    const groups: { key: string; items: Interview[] }[] = [];
+    const total = new Map<string, number>();
     for (const i of agenda) {
       const k = tzDayKey(calendarTime(i));
-      if (groups[groups.length - 1]?.key !== k) groups.push({ key: k, items: [] });
+      total.set(k, (total.get(k) ?? 0) + 1);
+    }
+    const groups: { key: string; items: Interview[]; total: number }[] = [];
+    for (const i of agendaPage) {
+      const k = tzDayKey(calendarTime(i));
+      if (groups[groups.length - 1]?.key !== k) groups.push({ key: k, items: [], total: total.get(k) ?? 0 });
       groups[groups.length - 1].items.push(i);
     }
     return groups;
-  }, [agenda, tz]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [agenda, agendaPage, tz]); // eslint-disable-line react-hooks/exhaustive-deps
   const dayLabel = (k: string) => {
     const today = tzDayKey(new Date());
     const shift = (n: number) => tzDayKey(new Date(Date.now() + n * 24 * 3600 * 1000));
@@ -586,7 +593,7 @@ export default function InterviewBoard({
                         <td colSpan={8} className={`border-b border-slate-200 bg-slate-50 py-2 text-xs font-semibold ${g.key === tzDayKey(new Date()) ? "text-indigo-700" : "text-slate-700"}`}>
                           {dayLabel(g.key)}
                           <span className="ml-2 font-normal text-slate-400 tabular-nums">
-                            {g.items.length} interview{g.items.length === 1 ? "" : "s"}
+                            {g.total} interview{g.total === 1 ? "" : "s"}
                           </span>
                         </td>
                       </tr>
@@ -640,6 +647,7 @@ export default function InterviewBoard({
                     </tbody>
                   ))}
                 </table>
+                <div className="border-t border-slate-200 px-4 pb-3">{agendaPager}</div>
               </div>
             )}
           </section>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Ban, Check, Copy, KeyRound, Plus, ShieldAlert, Terminal, Trash2 } from "lucide-react";
 import { useConfirm, useToast } from "@/components/Alerts";
-import { Alert, api, Badge, EmptyState, fmtDateTime, Modal, PageHeader, Section, Spinner, TableSkeleton, useAsync } from "@/components/ui";
+import { Alert, api, Badge, EmptyState, fmtDateTime, Modal, PageHeader, Section, Spinner, TableSkeleton, useAsync, useClientPaging } from "@/components/ui";
 
 const CODE = "rounded border border-slate-200 bg-slate-50 px-1 py-px font-mono text-[12px] text-slate-800";
 const PRE = "overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-3 font-mono text-xs leading-relaxed text-slate-800";
@@ -42,6 +42,7 @@ function status(k: Key) {
 /** Admin: keys for the read-only external API (scheduled interviews, profiles, generated resumes). */
 export default function ApiAccessPage() {
   const list = useAsync(() => api<{ keys: Key[] }>("/api/admin/access-keys").then((r) => r.keys), []);
+  const { pageRows: keyRows, pager } = useClientPaging(list.data ?? [], "api-access-keys");
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<{ name: string; key: string } | null>(null);
   const toast = useToast();
@@ -131,7 +132,7 @@ export default function ApiAccessPage() {
               </tr>
             </thead>
             <tbody>
-              {list.data.map((k) => (
+              {keyRows.map((k) => (
                 <tr key={k._id} className={k.revokedAt ? "text-slate-400" : ""}>
                   <td className={`font-medium ${k.revokedAt ? "" : "text-slate-900"}`}>{k.name}</td>
                   <td className="whitespace-nowrap">
@@ -171,6 +172,7 @@ export default function ApiAccessPage() {
               ))}
             </tbody>
           </table>
+          <div className="border-t border-slate-200 px-4 pb-3">{pager}</div>
           </div>
         )}
       </div>

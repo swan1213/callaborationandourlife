@@ -25,6 +25,16 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-25-3",
+    date: "2026-10-25",
+    title: "Rows per page on every table",
+    changes: [
+      { text: "Overview's breakdown and the Interviews (Schedule) month agenda now have Rows per page (25, 50, 100 or All) and page buttons, like the other tables.", roles: ["admin", "user"] },
+      { text: "So do the API Access keys and the Read by list of a sent notification.", roles: ["admin"] },
+    ],
+    steps: [{ text: "Pick Rows per page under a table; each table remembers its own choice in this browser.", roles: ["admin", "user"] }],
+  },
+  {
     id: "2026-10-25-2",
     date: "2026-10-25",
     title: "Easier profile picking on Job links",

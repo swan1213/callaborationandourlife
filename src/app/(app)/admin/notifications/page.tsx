@@ -340,7 +340,8 @@ function DetailModal({ m, onClose, onDeleted }: { m: Sent; onClose: () => void; 
   const detail = useAsync(() => api<Detail>(`/api/admin/messages/${m._id}`), [m._id]);
   const [filter, setFilter] = useState<"all" | "read" | "unread">("all");
   const rows = (detail.data?.recipients ?? []).filter((r) => filter === "all" || (filter === "read" ? r.readAt : !r.readAt));
-  const read = (detail.data?.recipients ?? []).filter((r) => r.readAt).length;
+  const { pageRows: recipientRows, pager } = useClientPaging(rows, "notification-recipients");
+  const read =(detail.data?.recipients ?? []).filter((r) => r.readAt).length;
   const toast = useToast();
   const confirm = useConfirm();
   const [deleting, setDeleting] = useState(false);
@@ -394,7 +395,7 @@ function DetailModal({ m, onClose, onDeleted }: { m: Sent; onClose: () => void; 
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {recipientRows.map((r) => (
                 <tr key={r._id}>
                   <td>
                     <div className="font-medium text-slate-900">{r.name}</div>
@@ -416,6 +417,7 @@ function DetailModal({ m, onClose, onDeleted }: { m: Sent; onClose: () => void; 
           </table>
         </div>
       )}
+      {!detail.loading && !!rows.length && pager}
       <div className="mt-4 flex justify-end">
         <button className="btn btn-ghost text-rose-600 hover:bg-rose-50 hover:text-rose-700" disabled={deleting} onClick={remove}>
           {deleting ? <Spinner /> : <Trash2 />}
