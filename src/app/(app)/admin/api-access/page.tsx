@@ -32,6 +32,7 @@ const ENDPOINTS: { path: string; what: string; params?: string }[] = [
   { path: "GET /api/v1/profiles", what: "All active profiles (summary).", params: "active=false to include inactive ones" },
   { path: "GET /api/v1/profiles/{id}", what: "Full profile details." },
   { path: "GET /api/v1/applications/{id}", what: "Any generated resume, cover letter and job description.", params: "format = json (default) | pdf | docx | jd-docx" },
+  { path: "GET /api/v1/unpaid", what: "Submitted applications not yet marked paid: total count and amount, per bidder and per profile (used by the Unpaid Counter app).", params: "bidder, profile (ids)" },
 ];
 
 function status(k: Key) {
