@@ -26,7 +26,7 @@ export const POST = handler(async (_req: Request, { params }: Ctx) => {
   if (!key) throw new HttpError(404, "API key not found");
   try {
     const client = new OpenAI({ apiKey: decrypt(key.keyEnc) });
-    await client.models.retrieve(key.model || "gpt-4o-mini");
+    await client.models.retrieve(key.model || "gpt-4.1-mini");
     key.lastError = "";
     await key.save();
     return NextResponse.json({ ok: true, message: `Key works and can access ${key.model}.` });

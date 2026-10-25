@@ -20,7 +20,7 @@ export function apiKeyUpdate(body: Record<string, unknown>, creating = false) {
     out.keyEnc = encrypt(key);
     out.keyMask = maskKey(key);
   } else if (creating) throw new HttpError(400, "API key is required");
-  if ("model" in body) out.model = String(body.model ?? "").trim() || "gpt-4o-mini";
+  if ("model" in body) out.model = String(body.model ?? "").trim() || "gpt-4.1-mini";
   if ("notes" in body) out.notes = String(body.notes ?? "");
   if ("active" in body) out.active = !!body.active;
   if ("isDefault" in body) out.isDefault = !!body.isDefault;

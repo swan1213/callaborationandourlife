@@ -8,12 +8,12 @@ const ApiKeySchema = new Schema(
     keyEnc: { type: String, required: true, select: false },
     keyMask: { type: String, default: "" },
     /** Default model for profiles using this key (a profile may override). */
-    model: { type: String, default: "gpt-4o-mini" },
+    model: { type: String, default: "gpt-4.1-mini" },
     /** Monthly token budget (prompt + completion); 0 = unlimited. */
     monthlyTokenLimit: { type: Number, default: 0, min: 0 },
     /** USD per 1M tokens, used to estimate spend. */
-    inputPricePerM: { type: Number, default: 0.15, min: 0 },
-    outputPricePerM: { type: Number, default: 0.6, min: 0 },
+    inputPricePerM: { type: Number, default: 0.4, min: 0 },
+    outputPricePerM: { type: Number, default: 1.6, min: 0 },
     /** Used by profiles that have no key selected. At most one key is default. */
     isDefault: { type: Boolean, default: false },
     active: { type: Boolean, default: true },

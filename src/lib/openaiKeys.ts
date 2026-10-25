@@ -14,7 +14,7 @@ export type ResolvedOpenAI = {
   outputPricePerM: number;
 };
 
-const ENV_PRICES = { inputPricePerM: 0.15, outputPricePerM: 0.6 };
+const ENV_PRICES = { inputPricePerM: 0.4, outputPricePerM: 1.6 };
 
 /** Tokens / estimated cost / generations per API key for the current month. */
 export async function keyMonthUsage(ids?: Types.ObjectId[]) {
@@ -50,7 +50,7 @@ export async function resolveOpenAI(profile: { apiKey?: unknown; openaiModel?: s
     }
     return {
       client: new OpenAI({ apiKey: decrypt(key.keyEnc) }),
-      model: profile.openaiModel || key.model || "gpt-4o-mini",
+      model: profile.openaiModel || key.model || "gpt-4.1-mini",
       apiKeyId: key._id,
       inputPricePerM: key.inputPricePerM,
       outputPricePerM: key.outputPricePerM,
@@ -60,7 +60,7 @@ export async function resolveOpenAI(profile: { apiKey?: unknown; openaiModel?: s
   if (process.env.OPENAI_API_KEY)
     return {
       client: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }),
-      model: profile.openaiModel || "gpt-4o-mini",
+      model: profile.openaiModel || "gpt-4.1-mini",
       apiKeyId: null,
       ...ENV_PRICES,
     };

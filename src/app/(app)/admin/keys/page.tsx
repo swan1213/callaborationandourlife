@@ -39,10 +39,10 @@ type FormState = {
 const EMPTY: FormState = {
   label: "",
   key: "",
-  model: "gpt-4o-mini",
+  model: "gpt-4.1-mini",
   monthlyTokenLimit: "0",
-  inputPricePerM: "0.15",
-  outputPricePerM: "0.6",
+  inputPricePerM: "0.4",
+  outputPricePerM: "1.6",
   isDefault: false,
   active: true,
   notes: "",
@@ -303,7 +303,7 @@ function KeyModal({ row, onClose, onSaved }: { row: KeyRow | null; onClose: () =
           </div>
           <div>
             <label className="label">Default model</label>
-            <ModelInput value={form.model} onChange={(v) => set("model", v)} placeholder="gpt-4o-mini" />
+            <ModelInput value={form.model} onChange={(v) => set("model", v)} placeholder="gpt-4.1-mini" />
           </div>
           <div>
             <label className="label">Monthly token limit (0 = unlimited)</label>
