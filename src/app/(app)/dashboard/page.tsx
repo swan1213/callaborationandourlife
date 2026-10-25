@@ -92,10 +92,13 @@ export default function GeneratePage() {
   const canSubmit = !!profileId && !busy && !quotaFull && (manual ? jobText.trim().length >= 100 : /^https?:\/\/\S+/.test(jobUrl.trim()));
   // Every word typed must appear in the profile's name, full name, title or location.
   const pq = profileQ.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const shownProfiles = (profiles.data ?? []).filter((p) => {
-    const text = [p.label, p.fullName, p.title, p.location].join(" ").toLowerCase();
-    return pq.every((w) => text.includes(w));
-  });
+  // The selected profile is listed first, so it's in view without scrolling.
+  const shownProfiles = (profiles.data ?? [])
+    .filter((p) => {
+      const text = [p.label, p.fullName, p.title, p.location].join(" ").toLowerCase();
+      return pq.every((w) => text.includes(w));
+    })
+    .sort((a, b) => Number(b.id === profileId) - Number(a.id === profileId));
 
   return (
     <div className="mx-auto max-w-5xl">
