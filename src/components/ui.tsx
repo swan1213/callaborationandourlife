@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Info, X } from "lucide-react";
 import { fromTzInput, fromWallTime, tzParts } from "@/lib/viewerTz";
 import DateInput from "./DateInput";
+import SearchSelect from "./SearchSelect";
 
 /* ------------------------------------------------------------ fetch helper */
 
@@ -498,13 +499,17 @@ export type PageSize = 25 | 50 | 100 | "all";
 export const PAGE_SIZES: PageSize[] = [25, 50, 100, "all"];
 const PAGE_SIZE_KEY = "tb-page-size";
 
-/** Rows-per-page preference, remembered per table (falls back to the last size used anywhere). */
+/**
+ * Rows-per-page preference, remembered per table; 25 until a table's own size is picked. "All" lasts only while the
+ * page is open (it is never remembered), so a long table never opens with thousands of rows.
+ */
 export function usePageSize(table: string, fallback: PageSize = 25) {
   const [size, setSize] = useState<PageSize>(fallback);
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(`${PAGE_SIZE_KEY}:${table}`) ?? localStorage.getItem(PAGE_SIZE_KEY);
-      const parsed = raw === "all" ? "all" : Number(raw);
+      // The old shared key let one table's choice (often "All") apply to every table.
+      localStorage.removeItem(PAGE_SIZE_KEY);
+      const parsed = Number(localStorage.getItem(`${PAGE_SIZE_KEY}:${table}`));
       if (PAGE_SIZES.includes(parsed as PageSize)) setSize(parsed as PageSize);
     } catch {
       /* storage unavailable */
@@ -513,8 +518,8 @@ export function usePageSize(table: string, fallback: PageSize = 25) {
   const update = (s: PageSize) => {
     setSize(s);
     try {
-      localStorage.setItem(`${PAGE_SIZE_KEY}:${table}`, String(s));
-      localStorage.setItem(PAGE_SIZE_KEY, String(s));
+      if (s === "all") localStorage.removeItem(`${PAGE_SIZE_KEY}:${table}`);
+      else localStorage.setItem(`${PAGE_SIZE_KEY}:${table}`, String(s));
     } catch {
       /* storage unavailable */
     }
@@ -571,24 +576,20 @@ export function Pagination({
             "No rows"
           )}
         </span>
-        <label className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <span className="hidden sm:inline">Rows per page</span>
-          <select
-            className="input w-auto py-1 pr-7 pl-2 text-xs"
+          <SearchSelect
+            size="sm"
+            className="w-20"
+            aria-label="Rows per page"
             value={String(pageSize)}
-            onChange={(e) => {
-              onPageSize((e.target.value === "all" ? "all" : Number(e.target.value)) as PageSize);
+            options={PAGE_SIZES.map((s) => ({ value: String(s), label: s === "all" ? "All" : String(s) }))}
+            onChange={(v) => {
+              onPageSize((v === "all" ? "all" : Number(v)) as PageSize);
               onPage(1);
             }}
-            aria-label="Rows per page"
-          >
-            {PAGE_SIZES.map((s) => (
-              <option key={String(s)} value={String(s)}>
-                {s === "all" ? "All" : s}
-              </option>
-            ))}
-          </select>
-        </label>
+          />
+        </div>
       </div>
       {pages > 1 && (
         <nav className="flex items-center gap-0.5" aria-label="Pagination">

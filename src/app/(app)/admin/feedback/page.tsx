@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/Avatar";
 import { PresenceAvatar } from "@/components/Presence";
+import SearchSelect from "@/components/SearchSelect";
 import { useToast } from "@/components/Alerts";
 import { ROLE_LABEL, type Role } from "@/components/Accounts";
 import { CATEGORY_LABEL, FeedbackStatus, STATUS_LABEL, Thread, type FeedbackItem } from "@/components/FeedbackUi";
@@ -48,25 +49,25 @@ function AdminFeedback() {
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <div className="min-w-0 flex-1 sm:flex-none">
           <label className="label">Status</label>
-          <select className="input w-full sm:w-40" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">All</option>
-            {Object.entries(STATUS_LABEL).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
+          <SearchSelect
+            className="w-full sm:w-40"
+            aria-label="Status"
+            value={status}
+            onChange={setStatus}
+            emptyOption="All"
+            options={Object.entries(STATUS_LABEL).map(([k, v]) => ({ value: k, label: v }))}
+          />
         </div>
         <div className="min-w-0 flex-1 sm:flex-none">
           <label className="label">Type</label>
-          <select className="input w-full sm:w-44" value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">All</option>
-            {Object.entries(CATEGORY_LABEL).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
+          <SearchSelect
+            className="w-full sm:w-44"
+            aria-label="Type"
+            value={category}
+            onChange={setCategory}
+            emptyOption="All"
+            options={Object.entries(CATEGORY_LABEL).map(([k, v]) => ({ value: k, label: v }))}
+          />
         </div>
         {list.data && (
           <div className="ml-auto pb-2 text-xs text-slate-500 tabular-nums">
@@ -192,13 +193,13 @@ function FeedbackModal({ f, onClose, onChanged }: { f: FeedbackItem; onClose: ()
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-2 text-sm">
             <span className="shrink-0 text-[13px] font-medium text-slate-500">Status</span>
-            <select className="input min-w-0 flex-1 sm:w-40 sm:flex-none" value={status} onChange={(e) => setStatus(e.target.value as FeedbackItem["status"])}>
-              {Object.entries(STATUS_LABEL).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              className="min-w-0 flex-1 sm:w-40 sm:flex-none"
+              aria-label="Status"
+              value={status}
+              onChange={(v) => setStatus(v as FeedbackItem["status"])}
+              options={Object.entries(STATUS_LABEL).map(([k, v]) => ({ value: k, label: v }))}
+            />
           </div>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
             <button className="btn btn-secondary" onClick={onClose}>

@@ -8,6 +8,7 @@ import { useConfirm, useToast } from "@/components/Alerts";
 import ResumeImport, { type ExtractedProfile, type ResumeReference } from "@/components/ResumeImport";
 import ModelInput from "@/components/ModelInput";
 import DesignPicker from "@/components/DesignPicker";
+import SearchSelect from "@/components/SearchSelect";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { Alert, api, PageHeader, Spinner, PageSkeleton, useAsync } from "@/components/ui";
 import { PROFILE_DEFAULTS, PROFILE_GROUP_TEXT_KEYS, PROFILE_GROUPS, SALARY_CURRENCIES, SALARY_PERIODS, selectOptions, type FieldDef } from "@/lib/profileFields";
@@ -274,14 +275,13 @@ export default function ProfileEditor({ params }: { params: Promise<{ id: string
       return (
         <div key={f.key} className={span}>
           <label className="label">{label}</label>
-          <select className="input" value={value} onChange={(e) => setInfo(f.key, e.target.value)}>
-            <option value="">{f.emptyLabel ?? "Not set"}</option>
-            {selectOptions(f, value).map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          <SearchSelect
+            aria-label={f.label}
+            value={value}
+            onChange={(v) => setInfo(f.key, v)}
+            emptyOption={f.emptyLabel ?? "Not set"}
+            options={selectOptions(f, value).map((o) => ({ value: o.value, label: o.label }))}
+          />
         </div>
       );
     if (f.type === "checks")
@@ -307,17 +307,21 @@ export default function ProfileEditor({ params }: { params: Promise<{ id: string
           <label className="label">{label}</label>
           <div className="flex flex-wrap items-center gap-3">
             <input className="input w-full sm:w-48" inputMode="numeric" placeholder={f.placeholder} value={value} onChange={(e) => setInfo(f.key, e.target.value)} />
-            <select className="input w-auto" aria-label="Currency" value={form.info.salaryCurrency || "USD"} onChange={(e) => setInfo("salaryCurrency", e.target.value)}>
-              {SALARY_CURRENCIES.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
+            <SearchSelect
+              className="w-24"
+              aria-label="Currency"
+              value={form.info.salaryCurrency || "USD"}
+              onChange={(v) => setInfo("salaryCurrency", v)}
+              options={SALARY_CURRENCIES.map((c) => ({ value: c, label: c }))}
+            />
             <span className="text-sm text-slate-500">per</span>
-            <select className="input w-auto" aria-label="Period" value={form.info.salaryPeriod || "year"} onChange={(e) => setInfo("salaryPeriod", e.target.value)}>
-              {SALARY_PERIODS.map((p) => (
-                <option key={p}>{p}</option>
-              ))}
-            </select>
+            <SearchSelect
+              className="w-28"
+              aria-label="Period"
+              value={form.info.salaryPeriod || "year"}
+              onChange={(v) => setInfo("salaryPeriod", v)}
+              options={SALARY_PERIODS.map((p) => ({ value: p, label: p }))}
+            />
           </div>
         </div>
       );
@@ -389,14 +393,14 @@ export default function ProfileEditor({ params }: { params: Promise<{ id: string
               {g.id === "personal" && isAdmin && (
                 <div className="md:col-span-3">
                   <label className="label">Belongs to user</label>
-                  <select className="input" value={form.manager} onChange={(e) => set("manager", e.target.value)}>
-                    <option value="">admin (you)</option>
-                    {managers.data?.map((u) => (
-                      <option key={u._id} value={u._id}>
-                        {u.name} · {u.email}
-                      </option>
-                    ))}
-                  </select>
+                  <SearchSelect
+                    aria-label="Belongs to user"
+                    value={form.manager}
+                    onChange={(v) => set("manager", v)}
+                    emptyOption="admin (you)"
+                    searchPlaceholder="Find a user…"
+                    options={(managers.data ?? []).map((u) => ({ value: u._id, label: u.name, hint: u.email }))}
+                  />
                 </div>
               )}
               {g.id === "address" && textInput("location", "Location shown on resume", { placeholder: locationPlaceholder || "Defaults to City, State" })}
@@ -609,15 +613,14 @@ export default function ProfileEditor({ params }: { params: Promise<{ id: string
                 </label>
                 <div>
                   <label className="label">OpenAI API key</label>
-                  <select className="input" value={form.apiKey} onChange={(e) => set("apiKey", e.target.value)}>
-                    <option value="">Default key{keys.data?.find((k) => k.isDefault) ? ` (${keys.data.find((k) => k.isDefault)!.label})` : ""}</option>
-                    {keys.data?.map((k) => (
-                      <option key={k._id} value={k._id}>
-                        {k.label} · {k.keyMask}
-                        {k.active ? "" : " (disabled)"}
-                      </option>
-                    ))}
-                  </select>
+                  <SearchSelect
+                    aria-label="OpenAI API key"
+                    value={form.apiKey}
+                    onChange={(v) => set("apiKey", v)}
+                    emptyOption={`Default key${keys.data?.find((k) => k.isDefault) ? ` (${keys.data.find((k) => k.isDefault)!.label})` : ""}`}
+                    searchPlaceholder="Find a key…"
+                    options={(keys.data ?? []).map((k) => ({ value: k._id, label: k.label, hint: `${k.keyMask}${k.active ? "" : " (disabled)"}` }))}
+                  />
                   <div className="hint">
                     Keys are managed on the{" "}
                     <Link href="/admin/keys" className="link">

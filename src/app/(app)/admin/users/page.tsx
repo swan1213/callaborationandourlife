@@ -6,6 +6,7 @@ import { Suspense, useState, type ReactNode } from "react";
 import { useRole } from "@/components/AppShell";
 import { ActionMenu, type ActionItem } from "@/components/ActionMenu";
 import { useConfirm, useToast } from "@/components/Alerts";
+import SearchSelect from "@/components/SearchSelect";
 import { PresenceAvatar, PresenceLabel, usePresence, type PresenceStatus } from "@/components/Presence";
 import { AccountModal, ROLE_LABEL, StatusBadge, type AccountRow, type ProfileOpt, type Role } from "@/components/Accounts";
 import { ArrowDown, ArrowUp, Check, Eye, Pencil, Plus, Power, PowerOff, Search, Trash, UserRoundSearch, X } from "lucide-react";
@@ -233,13 +234,19 @@ function AccountsPage() {
             <input className="input pl-9" aria-label="Search" placeholder="Name or email" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           {isAdmin && (
-            <select className="input w-full sm:w-48" aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="">All statuses</option>
-              <option value="pending">Pending approval</option>
-              <option value="approved">Active</option>
-              <option value="suspended">Deactivated</option>
-              <option value="rejected">Rejected</option>
-            </select>
+            <SearchSelect
+              className="w-full sm:w-48"
+              aria-label="Status"
+              value={status}
+              onChange={setStatus}
+              emptyOption="All statuses"
+              options={[
+                { value: "pending", label: "Pending approval" },
+                { value: "approved", label: "Active" },
+                { value: "suspended", label: "Deactivated" },
+                { value: "rejected", label: "Rejected" },
+              ]}
+            />
           )}
         </div>
       </div>

@@ -9,6 +9,7 @@ import { ActionMenu, type ActionItem } from "@/components/ActionMenu";
 import Lightbox, { type Slide } from "@/components/Lightbox";
 import PostingLink from "@/components/PostingLink";
 import ReadDot from "@/components/ReadDot";
+import SearchSelect from "@/components/SearchSelect";
 import { useColumns } from "@/components/ColumnPicker";
 import { ArrowRight, Check, CircleCheck, CircleDollarSign, Clock, Download, ExternalLink, Eye, FileArchive, FileDown, FileText, Inbox, Search, Send, Trash2, Undo2, Wallet, X } from "lucide-react";
 import { Alert, api, Badge, notGeneratedReason, DateRangeFilter, downloadFile, EmptyState, fmtStamp, money, PageHeader, Pagination, rangeParams, selectOnRowClick, Spinner, TableSkeleton, Stat, useAsync, usePageSize, limitParam } from "@/components/ui";
@@ -289,42 +290,52 @@ function History() {
         <DateRangeFilter from={from} to={to} onChange={(f, tt) => reset(() => (setFrom(f), setTo(tt)))} />
         <div className="w-full sm:w-56">
           <label className="label">Account</label>
-          <select className="input" value={user} onChange={(e) => reset(() => setUser(e.target.value))}>
-            <option value="">All accounts</option>
-            {users.data?.map((u) => (
-              <option key={u._id} value={u._id}>
-                {u.name} ({u.email})
-              </option>
-            ))}
-          </select>
+          <SearchSelect
+            aria-label="Account"
+            value={user}
+            onChange={(v) => reset(() => setUser(v))}
+            emptyOption="All accounts"
+            searchPlaceholder="Find an account…"
+            options={(users.data ?? []).map((u) => ({ value: u._id, label: u.name, hint: u.email }))}
+          />
         </div>
         <div className="w-full sm:w-44">
           <label className="label">Profile</label>
-          <select className="input" value={profile} onChange={(e) => reset(() => setProfile(e.target.value))}>
-            <option value="">All profiles</option>
-            {profiles.data?.map((p) => (
-              <option key={p._id} value={p._id}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+          <SearchSelect
+            aria-label="Profile"
+            value={profile}
+            onChange={(v) => reset(() => setProfile(v))}
+            emptyOption="All profiles"
+            searchPlaceholder="Find a profile…"
+            options={(profiles.data ?? []).map((p) => ({ value: p._id, label: p.label }))}
+          />
         </div>
         <div className="w-[calc(50%-0.375rem)] sm:w-36">
           <label className="label">Status</label>
-          <select className="input" value={status} onChange={(e) => reset(() => setStatus(e.target.value))}>
-            <option value="">All</option>
-            <option value="generated">Generated</option>
-            <option value="submitted">Submitted</option>
-            <option value="not_generated">Not-generated</option>
-          </select>
+          <SearchSelect
+            aria-label="Status"
+            value={status}
+            onChange={(v) => reset(() => setStatus(v))}
+            emptyOption="All"
+            options={[
+              { value: "generated", label: "Generated" },
+              { value: "submitted", label: "Submitted" },
+              { value: "not_generated", label: "Not-generated" },
+            ]}
+          />
         </div>
         <div className="w-[calc(50%-0.375rem)] sm:w-36">
           <label className="label">Payment</label>
-          <select className="input" value={paid} onChange={(e) => reset(() => setPaid(e.target.value))}>
-            <option value="">All</option>
-            <option value="paid">Only paid</option>
-            <option value="unpaid">Only not paid</option>
-          </select>
+          <SearchSelect
+            aria-label="Payment"
+            value={paid}
+            onChange={(v) => reset(() => setPaid(v))}
+            emptyOption="All"
+            options={[
+              { value: "paid", label: "Only paid" },
+              { value: "unpaid", label: "Only not paid" },
+            ]}
+          />
         </div>
         <div className="min-w-0 flex-1 basis-full sm:min-w-56 sm:basis-auto">
           <label className="label">Search</label>

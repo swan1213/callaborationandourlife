@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import SearchSelect from "@/components/SearchSelect";
 import { useToast } from "@/components/Alerts";
 import { ArrowRight, CircleCheck, Link2, ListChecks, Pause, Play, RefreshCw, Sparkles, Square, X } from "lucide-react";
 import { Alert, api, ApiError, Badge, EmptyState, PageHeader, Spinner, useAsync, useClientPaging } from "@/components/ui";
@@ -284,13 +285,14 @@ export default function ImportPage() {
                   <StepNumber n={1} />
                   Profile
                 </label>
-                <select id="import-profile" className="input" value={profileId} onChange={(e) => setProfileId(e.target.value)} disabled={running}>
-                  {profiles.data.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.label}
-                    </option>
-                  ))}
-                </select>
+                <SearchSelect
+                  id="import-profile"
+                  value={profileId}
+                  onChange={setProfileId}
+                  disabled={running}
+                  options={profiles.data.map((p) => ({ value: p.id, label: p.label, hint: p.fullName && p.fullName !== p.label ? p.fullName : undefined }))}
+                  searchPlaceholder="Find a profile…"
+                />
                 {selected && (
                   <>
                     {selected.monthlyQuota > 0 && (

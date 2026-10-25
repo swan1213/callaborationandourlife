@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BellOff, CheckCheck, Image as ImageIcon, Inbox } from "lucide-react";
+import SearchSelect from "@/components/SearchSelect";
 import { NoteIcon, useNotifications, type Note } from "@/components/Notifications";
 import { api, EmptyState, fmtDateTime, PageHeader, Segmented, SkeletonText, useAsync, useClientPaging } from "@/components/ui";
 
@@ -72,14 +73,15 @@ function NotificationsPage() {
             ]}
           />
           <div className="flex items-center gap-3">
-            <select className="input w-auto py-1.5 text-[13px]" aria-label="Type" value={type} onChange={(e) => setType(e.target.value)}>
-              <option value="">All types</option>
-              {Object.entries(GROUPS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              className="w-40"
+              size="sm"
+              aria-label="Type"
+              value={type}
+              onChange={setType}
+              emptyOption="All types"
+              options={Object.entries(GROUPS).map(([value, label]) => ({ value, label }))}
+            />
             {!!list.data && <span className="text-xs whitespace-nowrap text-slate-500 tabular-nums">{items.length.toLocaleString()} shown</span>}
           </div>
         </div>

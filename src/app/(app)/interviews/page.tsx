@@ -459,13 +459,14 @@ function RequestForm({
       {error && <Alert>{error}</Alert>}
       <div>
         <label className="label">Profile *</label>
-        <select className="input" value={f.profileId} onChange={(e) => setF({ ...f, profileId: e.target.value })}>
-          {profiles.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
-        </select>
+        <SearchSelect
+          aria-label="Profile"
+          value={f.profileId}
+          options={profiles.map((p) => ({ value: p.id, label: p.label }))}
+          onChange={(v) => setF({ ...f, profileId: v })}
+          searchPlaceholder="Find a profile…"
+          emptyText="No profile matches"
+        />
       </div>
       <div>
         <label className="label" htmlFor="iv-app">
@@ -517,15 +518,17 @@ function RequestForm({
           </label>
           {checking ? <Spinner className="h-3.5 w-3.5 text-slate-400" /> : <StepBar step={Number(f.step)} label={false} />}
         </div>
-        <select id="iv-step" className="input mt-2" value={f.step} onChange={(e) => setF({ ...f, step: e.target.value })}>
-          {Array.from({ length: 10 }, (_, k) => k + 1).map((n) => (
-            <option key={n} value={n} disabled={!!chain?.previous.some((p) => p.step === n)}>
-              Step {n}
-              {n === 1 ? " · initial interview" : " · follow-up"}
-              {chain?.previous.some((p) => p.step === n) ? " (already requested)" : ""}
-            </option>
-          ))}
-        </select>
+        <SearchSelect
+          id="iv-step"
+          className="mt-2"
+          searchable={false}
+          value={String(f.step)}
+          onChange={(v) => setF({ ...f, step: v })}
+          options={Array.from({ length: 10 }, (_, k) => k + 1).map((n) => {
+            const taken = !!chain?.previous.some((p) => p.step === n);
+            return { value: String(n), label: `Step ${n}${n === 1 ? " · initial interview" : " · follow-up"}${taken ? " (already requested)" : ""}`, disabled: taken };
+          })}
+        />
         {!chain ? (
           <div className="hint">Choose the application to check for earlier interviews.</div>
         ) : !chain.followUp ? (
@@ -564,14 +567,16 @@ function RequestForm({
           </div>
         ) : (
           <>
-            <select className="input" required value={f.callerId} onChange={(e) => setF({ ...f, callerId: e.target.value })}>
-              <option value="">Choose a caller</option>
-              {callers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              aria-label="Caller"
+              required
+              value={f.callerId}
+              emptyOption="Choose a caller"
+              options={callers.map((c) => ({ value: c.id, label: c.name }))}
+              onChange={(v) => setF({ ...f, callerId: v })}
+              searchPlaceholder="Find a caller…"
+              emptyText="No caller matches"
+            />
             {chain?.lead && !chain.lead.active && (
               <div className="hint text-amber-700">
                 {chain.lead.name} conducted the earlier interview but is no longer an active caller. Choose another caller.
@@ -617,13 +622,12 @@ function RequestForm({
       </div>
       <div className="sm:max-w-xs">
         <label className="label">Interview length</label>
-        <select className="input" value={f.duration} onChange={(e) => setF({ ...f, duration: e.target.value })}>
-          {[15, 30, 45, 60, 90, 120].map((m) => (
-            <option key={m} value={m}>
-              {m} minutes
-            </option>
-          ))}
-        </select>
+        <SearchSelect
+          aria-label="Interview length"
+          value={f.duration}
+          options={[15, 30, 45, 60, 90, 120].map((m) => ({ value: String(m), label: `${m} minutes` }))}
+          onChange={(v) => setF({ ...f, duration: v })}
+        />
       </div>
       <div>
         <label className="label">Interview email screenshot *</label>

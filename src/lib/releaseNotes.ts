@@ -25,6 +25,16 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-25-4",
+    date: "2026-10-25",
+    title: "New dropdowns everywhere",
+    changes: [
+      { text: "Every dropdown now opens the same list: long ones (profiles, accounts, callers…) have a find box, so you can type a name instead of scrolling.", roles: ALL },
+      { text: "Tables open with 25 rows again. Each table remembers 25, 50 or 100 on its own; All only lasts until you leave the page.", roles: ALL },
+    ],
+    steps: [{ text: "Click a dropdown and start typing to find an option; use the arrow keys and Enter to pick.", roles: ALL }],
+  },
+  {
     id: "2026-10-25-3",
     date: "2026-10-25",
     title: "Rows per page on every table",

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Ban, Check, Copy, KeyRound, Plus, ShieldAlert, Terminal, Trash2 } from "lucide-react";
 import { useConfirm, useToast } from "@/components/Alerts";
+import SearchSelect from "@/components/SearchSelect";
 import { Alert, api, Badge, EmptyState, fmtDateTime, Modal, PageHeader, Section, Spinner, TableSkeleton, useAsync, useClientPaging } from "@/components/ui";
 
 const CODE = "rounded border border-slate-200 bg-slate-50 px-1 py-px font-mono text-[12px] text-slate-800";
@@ -277,13 +278,18 @@ function CreateKey({ onClose, onCreated }: { onClose: () => void; onCreated: (c:
           <label className="label" htmlFor="ak-exp">
             Expires
           </label>
-          <select id="ak-exp" className="input" value={days} onChange={(e) => setDays(e.target.value)}>
-            <option value="0">Never</option>
-            <option value="30">In 30 days</option>
-            <option value="90">In 90 days</option>
-            <option value="180">In 180 days</option>
-            <option value="365">In 1 year</option>
-          </select>
+          <SearchSelect
+            id="ak-exp"
+            value={days}
+            onChange={setDays}
+            options={[
+              { value: "0", label: "Never" },
+              { value: "30", label: "In 30 days" },
+              { value: "90", label: "In 90 days" },
+              { value: "180", label: "In 180 days" },
+              { value: "365", label: "In 1 year" },
+            ]}
+          />
         </div>
         <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:flex-wrap sm:justify-end">
           <button type="button" className="btn btn-secondary" onClick={onClose}>

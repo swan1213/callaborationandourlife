@@ -3,9 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Download, ExternalLink, FileArchive, FileText, ImagePlus, Lock, MessageSquare, Plus, Video, X } from "lucide-react";
 import Lightbox, { type Slide } from "./Lightbox";
+import SearchSelect from "./SearchSelect";
 import { Alert, api, Badge, downloadFile, Modal, Spinner, useAsync } from "./ui";
 import { useToast } from "./Alerts";
 import { fromTzInput, fromWallTime, toTzInput, tzAbbr, tzDayKey, tzParts } from "@/lib/viewerTz";
+
+const STEP_OPTIONS = Array.from({ length: 10 }, (_, k) => k + 1).map((n) => ({ value: String(n), label: `Step ${n}${n === 1 ? " (initial)" : ""}` }));
 
 /* ------------------------------------------------------------------ types */
 
@@ -543,14 +546,7 @@ export function ScheduleDialog({
         <div>
           <label className="label">Interview step *</label>
           <div className="flex items-center gap-3">
-            <select className="input max-w-44" value={step} onChange={(e) => setStep(e.target.value)}>
-              {Array.from({ length: 10 }, (_, k) => k + 1).map((n) => (
-                <option key={n} value={n}>
-                  Step {n}
-                  {n === 1 ? " (initial)" : ""}
-                </option>
-              ))}
-            </select>
+            <SearchSelect className="w-44" searchable={false} aria-label="Interview step" value={step} options={STEP_OPTIONS} onChange={setStep} />
             <StepBar step={Number(step)} label={false} />
           </div>
         </div>
@@ -561,13 +557,7 @@ export function ScheduleDialog({
           </div>
           <div>
             <label className="label">Length</label>
-            <select className="input" value={duration} onChange={(e) => setDuration(e.target.value)}>
-              {[15, 30, 45, 60, 90, 120].map((m) => (
-                <option key={m} value={m}>
-                  {m} min
-                </option>
-              ))}
-            </select>
+            <SearchSelect aria-label="Length" value={duration} options={[15, 30, 45, 60, 90, 120].map((m) => ({ value: String(m), label: `${m} min` }))} onChange={setDuration} />
           </div>
         </div>
         {outside && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">This is outside the requested {i.mode === "range" ? "window" : "time"}. The bidder will be notified of the new time.</div>}
@@ -654,14 +644,7 @@ export function ReportDialog({ i, onClose, onDone }: { i: Interview; onClose: ()
         />
         <div>
           <label className="label">Interview step</label>
-          <select className="input max-w-44" value={step} onChange={(e) => setStep(e.target.value)}>
-            {Array.from({ length: 10 }, (_, k) => k + 1).map((n) => (
-              <option key={n} value={n}>
-                Step {n}
-                {n === 1 ? " (initial)" : ""}
-              </option>
-            ))}
-          </select>
+          <SearchSelect className="w-44" searchable={false} aria-label="Interview step" value={step} options={STEP_OPTIONS} onChange={setStep} />
         </div>
         <div className="card-footer -mx-5 -mb-5 mt-5">
           <button type="button" className="btn btn-secondary" onClick={onClose}>
@@ -1022,13 +1005,14 @@ export function AssignDialog({ i, callers, onClose, onDone }: { i: Interview; ca
     <Modal open onClose={onClose} title="Assign to a caller">
       <form className="space-y-4" onSubmit={submit}>
         {error && <Alert>{error}</Alert>}
-        <select className="input" value={callerId} onChange={(e) => setCallerId(e.target.value)}>
-          {callers.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <SearchSelect
+          aria-label="Caller"
+          value={callerId}
+          options={callers.map((c) => ({ value: c.id, label: c.name }))}
+          onChange={setCallerId}
+          searchPlaceholder="Find a caller…"
+          emptyText="No caller matches"
+        />
         <p className="text-xs text-slate-500">The caller gets the request by email and must schedule it within the scheduling deadline.</p>
         <div className="card-footer -mx-5 -mb-5 mt-5">
           <button type="button" className="btn btn-secondary" onClick={onClose}>

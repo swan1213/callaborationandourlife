@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, ExternalLink, FlaskConical, Mail, RotateCcw, Save, Send } from "lucide-react";
 import { Alert, api, PageHeader, Section, Spinner, PageSkeleton } from "@/components/ui";
 import DateInput from "@/components/DateInput";
+import SearchSelect from "@/components/SearchSelect";
 import { useConfirm, useToast } from "@/components/Alerts";
 
 const TAG = "inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium whitespace-nowrap ring-1 ring-inset";
@@ -313,10 +314,15 @@ export default function SettingsPage() {
             </div>
             <div>
               <label className="label">Milestone counting</label>
-              <select className="input" value={form.milestonePeriod} onChange={(e) => setForm({ ...form, milestonePeriod: e.target.value as FormState["milestonePeriod"] })}>
-                <option value="daily">Per day (resets at midnight)</option>
-                <option value="lifetime">All-time total</option>
-              </select>
+              <SearchSelect
+                aria-label="Milestone counting"
+                value={form.milestonePeriod}
+                onChange={(v) => setForm({ ...form, milestonePeriod: v as FormState["milestonePeriod"] })}
+                options={[
+                  { value: "daily", label: "Per day (resets at midnight)" },
+                  { value: "lifetime", label: "All-time total" },
+                ]}
+              />
             </div>
           </div>
           <div className="divide-y divide-slate-200 overflow-hidden rounded-lg border border-slate-200">

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AudioLines, ChevronRight, Clock, MessageCircleQuestion } from "lucide-react";
 import { Alert, api, EmptyState, fmtDateTime, PageHeader, TableSkeleton, useAsync, useClientPaging } from "@/components/ui";
 import { duration, sessionTitle, STAGE_LABEL, type SessionSummary } from "@/components/interviewHistory";
+import SearchSelect from "@/components/SearchSelect";
 
 export default function Page() {
   return (
@@ -59,26 +60,28 @@ function InterviewHistory() {
         {list.data?.canSeeAll && (
           <div className="min-w-0 flex-1 sm:flex-none">
             <label className="label">Recorded by</label>
-            <select className="input w-full sm:w-48" value={person} onChange={(e) => setPerson(e.target.value)}>
-              <option value="">Everyone</option>
-              {people.map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              aria-label="Recorded by"
+              className="w-full sm:w-48"
+              value={person}
+              emptyOption="Everyone"
+              options={people.map(([id, name]) => ({ value: id, label: name }))}
+              onChange={setPerson}
+              searchPlaceholder="Find a person…"
+              emptyText="No one matches"
+            />
           </div>
         )}
         <div className="min-w-0 flex-1 sm:flex-none">
           <label className="label">Stage</label>
-          <select className="input w-full sm:w-48" value={stage} onChange={(e) => setStage(e.target.value)}>
-            <option value="">All</option>
-            {Object.entries(STAGE_LABEL).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
+          <SearchSelect
+            aria-label="Stage"
+            className="w-full sm:w-48"
+            value={stage}
+            emptyOption="All"
+            options={Object.entries(STAGE_LABEL).map(([k, v]) => ({ value: k, label: v }))}
+            onChange={setStage}
+          />
         </div>
         {list.data && (
           <div className="ml-auto pb-2 text-xs text-slate-500 tabular-nums">

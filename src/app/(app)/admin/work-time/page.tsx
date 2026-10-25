@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Timer } from "lucide-react";
 import { Alert, api, EmptyState, localDay, PageHeader, Segmented, Stat, TableSkeleton, useAsync, useClientPaging } from "@/components/ui";
+import SearchSelect from "@/components/SearchSelect";
 import { PresenceAvatar, PresenceLabel, usePresence } from "@/components/Presence";
 import { getViewerTz, tzParts, zoneName } from "@/lib/viewerTz";
 
@@ -108,14 +109,7 @@ export default function Page() {
         )}
         <div>
           <label className="label">Role</label>
-          <select className="input w-36" value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="">All</option>
-            {Object.entries(ROLE_LABEL).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
+          <SearchSelect className="w-36" aria-label="Role" value={role} onChange={setRole} emptyOption="All" options={Object.entries(ROLE_LABEL).map(([value, label]) => ({ value, label }))} />
         </div>
         <label className="flex items-center gap-2 pb-2 text-[13px] text-slate-600">
           <input type="checkbox" checked={everyone} onChange={(e) => setEveryone(e.target.checked)} />

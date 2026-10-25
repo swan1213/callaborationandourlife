@@ -188,20 +188,18 @@ export default function ScheduleInterviewForm({
             <label className="label" htmlFor="as-profile">
               Profile *
             </label>
-            <select
+            <SearchSelect
               id="as-profile"
-              className="input"
               disabled={editing}
               value={f.profileId}
-              onChange={(e) => setF({ ...f, profileId: e.target.value, applicationId: "", company: "", jobTitle: "" })}
-            >
-              {editing && !profile && <option value={f.profileId}>{interview?.profile?.label ?? interview?.profileLabel}</option>}
-              {profiles.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
+              options={[
+                ...(editing && !profile ? [{ value: f.profileId, label: interview?.profile?.label ?? interview?.profileLabel ?? "" }] : []),
+                ...profiles.map((p) => ({ value: p.id, label: p.label })),
+              ]}
+              onChange={(v) => setF({ ...f, profileId: v, applicationId: "", company: "", jobTitle: "" })}
+              searchPlaceholder="Find a profile…"
+              emptyText="No profile matches"
+            />
           </div>
           <div>
             <div className="flex items-center justify-between gap-2">
@@ -212,15 +210,16 @@ export default function ScheduleInterviewForm({
                 <StepBar step={Number(f.step)} label={false} />
               </div>
             </div>
-            <select id="as-step" className="input" value={f.step} onChange={(e) => setF({ ...f, step: e.target.value })}>
-              {Array.from({ length: 10 }, (_, k) => k + 1).map((n) => (
-                <option key={n} value={n} disabled={!!chain?.previous.some((p) => p.step === n)}>
-                  Step {n}
-                  {n === 1 ? " · initial interview" : " · follow-up"}
-                  {chain?.previous.some((p) => p.step === n) ? " (already exists)" : ""}
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              id="as-step"
+              searchable={false}
+              value={String(f.step)}
+              onChange={(v) => setF({ ...f, step: v })}
+              options={Array.from({ length: 10 }, (_, k) => k + 1).map((n) => {
+                const taken = !!chain?.previous.some((p) => p.step === n);
+                return { value: String(n), label: `Step ${n}${n === 1 ? " · initial interview" : " · follow-up"}${taken ? " (already exists)" : ""}`, disabled: taken };
+              })}
+            />
           </div>
         </div>
         <div>
@@ -287,27 +286,19 @@ export default function ScheduleInterviewForm({
           <label className="label" htmlFor="as-caller">
             Caller *
           </label>
-          <select id="as-caller" className="input" required value={f.callerId} onChange={(e) => setF({ ...f, callerId: e.target.value })}>
-            <option value="">Choose a caller</option>
-            {!!onProfile.length && (
-              <optgroup label="Assigned to this profile">
-                {onProfile.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {!!others.length && (
-              <optgroup label={onProfile.length ? "Other callers" : "Callers"}>
-                {others.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
+          <SearchSelect
+            id="as-caller"
+            required
+            value={f.callerId}
+            emptyOption="Choose a caller"
+            options={[
+              ...onProfile.map((c) => ({ value: c.id, label: c.name, group: "Assigned to this profile" })),
+              ...others.map((c) => ({ value: c.id, label: c.name, group: onProfile.length ? "Other callers" : "Callers" })),
+            ]}
+            onChange={(v) => setF({ ...f, callerId: v })}
+            searchPlaceholder="Find a caller…"
+            emptyText="No caller matches"
+          />
           {chain?.lead?.active && (
             <p className={`hint ${f.callerId === chain.lead.id ? "" : "flex items-start gap-1.5 text-amber-700"}`}>
               {f.callerId !== chain.lead.id && <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden />}
@@ -348,13 +339,12 @@ export default function ScheduleInterviewForm({
             <label className="label" htmlFor="as-length">
               Interview length
             </label>
-            <select id="as-length" className="input" value={f.duration} onChange={(e) => setF({ ...f, duration: e.target.value })}>
-              {[15, 30, 45, 60, 90, 120].map((m) => (
-                <option key={m} value={m}>
-                  {m} minutes
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              id="as-length"
+              value={f.duration}
+              options={[15, 30, 45, 60, 90, 120].map((m) => ({ value: String(m), label: `${m} minutes` }))}
+              onChange={(v) => setF({ ...f, duration: v })}
+            />
           </div>
         </div>
         {(inMyZone || callerLocal) && (

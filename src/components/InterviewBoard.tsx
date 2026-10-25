@@ -355,30 +355,41 @@ export default function InterviewBoard({
             </div>
           ) : (
             <>
-              <select aria-label="Profile" className="input w-full sm:w-auto sm:min-w-44" value={profile} onChange={(e) => setProfile(e.target.value)}>
-                <option value="">All profiles</option>
-                {options.data?.profiles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-              <select aria-label="Caller" className="input w-full sm:w-auto sm:min-w-40" value={caller} onChange={(e) => setCaller(e.target.value)}>
-                <option value="">All callers</option>
-                {options.data?.callers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <SearchSelect
+                aria-label="Profile"
+                className="w-full sm:w-auto sm:min-w-44"
+                value={profile}
+                emptyOption="All profiles"
+                options={(options.data?.profiles ?? []).map((p) => ({ value: p.id, label: p.label }))}
+                onChange={setProfile}
+                searchPlaceholder="Find a profile…"
+                emptyText="No profile matches"
+              />
+              <SearchSelect
+                aria-label="Caller"
+                className="w-full sm:w-auto sm:min-w-40"
+                value={caller}
+                emptyOption="All callers"
+                options={(options.data?.callers ?? []).map((c) => ({ value: c.id, label: c.name }))}
+                onChange={setCaller}
+                searchPlaceholder="Find a caller…"
+                emptyText="No caller matches"
+              />
             </>
           )}
           {as === "staff" && myRole === "admin" && (
-            <select id="iv-deleted" aria-label="Deleted interviews" className="input w-full sm:w-auto" value={deleted} onChange={(e) => setDeleted(e.target.value as "" | "show" | "only")}>
-              <option value="">Hide deleted</option>
-              <option value="show">Show deleted too</option>
-              <option value="only">Only deleted</option>
-            </select>
+            <SearchSelect
+              id="iv-deleted"
+              aria-label="Deleted interviews"
+              className="w-full sm:w-auto"
+              value={deleted}
+              emptyOption="Hide deleted"
+              options={[
+                { value: "show", label: "Show deleted too" },
+                { value: "only", label: "Only deleted" },
+              ]}
+              onChange={(v) => setDeleted(v as "" | "show" | "only")}
+            />
           )}
           {(profile || caller || deleted) && (
             <button

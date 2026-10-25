@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/Alerts";
+import SearchSelect from "@/components/SearchSelect";
 import { Check, CircleCheck, ClipboardCheck, Copy, CopyCheck, ExternalLink, IdCard, Inbox, Link2, ListTodo, Search, X } from "lucide-react";
 import {
   Alert,
@@ -66,7 +67,7 @@ export default function JobLinksPage() {
   const [to, setTo] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = usePageSize("job-links", 50);
+  const [pageSize, setPageSize] = usePageSize("job-links");
   const [busy, setBusy] = useState("");
   const [copied, setCopied] = useState("");
   // Selected job links, keyed by URL (each URL is listed once). Kept across pages and filters, cleared with the profile.
@@ -264,11 +265,16 @@ export default function JobLinksPage() {
                 <DateRangeFilter from={from} to={to} onChange={(f, tt) => reset(() => (setFrom(f), setTo(tt)))} />
                 <div className="w-full sm:w-40">
                   <label className="label">Copied</label>
-                  <select className="input" value={copiedFilter} onChange={(e) => reset(() => setCopiedFilter(e.target.value))}>
-                    <option value="">All</option>
-                    <option value="no">Not copied</option>
-                    <option value="yes">Copied</option>
-                  </select>
+                  <SearchSelect
+                    aria-label="Copied"
+                    value={copiedFilter}
+                    onChange={(v) => reset(() => setCopiedFilter(v))}
+                    emptyOption="All"
+                    options={[
+                      { value: "no", label: "Not copied" },
+                      { value: "yes", label: "Copied" },
+                    ]}
+                  />
                 </div>
                 <div className="min-w-0 flex-1 basis-full sm:min-w-56 sm:basis-auto">
                   <label className="label">Search</label>

@@ -20,6 +20,7 @@ import {
 } from "./interviews";
 import { EmptyState, useClientPaging } from "./ui";
 import { PresenceDot } from "./Presence";
+import SearchSelect from "./SearchSelect";
 import { tzDayKey } from "@/lib/viewerTz";
 
 /* ------------------------------------------------------------ view switch */
@@ -429,14 +430,14 @@ export function ListView({ items, onOpen, initialStatus = "" }: { items: Intervi
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" aria-hidden />
               <input className="input pl-9" aria-label="Search interviews" placeholder="Search company, role, profile, people" value={q} onChange={(e) => setQ(e.target.value)} />
             </div>
-            <select className="input w-full sm:w-auto sm:min-w-44" aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value as "" | ColumnKey)}>
-              <option value="">All statuses</option>
-              {STATUS_COLUMNS.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.title}
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              className="w-full sm:w-auto sm:min-w-44"
+              aria-label="Status"
+              value={status}
+              emptyOption="All statuses"
+              options={STATUS_COLUMNS.map((c) => ({ value: c.key, label: c.title }))}
+              onChange={(v) => setStatus(v as "" | ColumnKey)}
+            />
           </div>
           <span className="text-xs text-slate-500 tabular-nums">
             {rows.length} interview{rows.length === 1 ? "" : "s"}

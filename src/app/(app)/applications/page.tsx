@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import SearchSelect from "@/components/SearchSelect";
 import ScreenshotUploader from "@/components/ScreenshotUploader";
 import Lightbox, { type Slide } from "@/components/Lightbox";
 import PostingLink from "@/components/PostingLink";
@@ -403,23 +404,28 @@ export default function ApplicationsPage() {
         <DateRangeFilter from={from} to={to} onChange={(f, t) => reset(() => (setFrom(f), setTo(t)))} />
         <div className="w-[calc(50%-0.375rem)] sm:w-52">
           <label className="label">Status</label>
-          <select className="input" value={status} onChange={(e) => reset(() => setStatus(e.target.value))}>
-            <option value="">All</option>
-            <option value="generated">Generated (not submitted)</option>
-            <option value="submitted">Submitted</option>
-            <option value="not_generated">Not-generated</option>
-          </select>
+          <SearchSelect
+            aria-label="Status"
+            value={status}
+            onChange={(v) => reset(() => setStatus(v))}
+            emptyOption="All"
+            options={[
+              { value: "generated", label: "Generated (not submitted)" },
+              { value: "submitted", label: "Submitted" },
+              { value: "not_generated", label: "Not-generated" },
+            ]}
+          />
         </div>
         <div className="w-[calc(50%-0.375rem)] sm:w-44">
           <label className="label">Profile</label>
-          <select className="input" value={profile} onChange={(e) => reset(() => setProfile(e.target.value))}>
-            <option value="">All</option>
-            {profiles.data?.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+          <SearchSelect
+            aria-label="Profile"
+            value={profile}
+            onChange={(v) => reset(() => setProfile(v))}
+            emptyOption="All"
+            options={(profiles.data ?? []).map((p) => ({ value: p.id, label: p.label }))}
+            searchPlaceholder="Find a profile…"
+          />
         </div>
         <div className="min-w-0 flex-1 basis-full sm:min-w-56 sm:basis-auto">
           <label className="label">Search</label>

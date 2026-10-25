@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Download, RefreshCw, ScrollText, Search, TriangleAlert } from "lucide-react";
 import { ROLE_LABEL, type Role } from "@/components/Accounts";
 import DateInput from "@/components/DateInput";
+import SearchSelect from "@/components/SearchSelect";
 import { useToast } from "@/components/Alerts";
 import { Alert, api, Badge, downloadFile, EmptyState, fmtStamp, limitParam, Modal, PageHeader, Pagination, rangeParams, Spinner, TableSkeleton, useAsync, usePageSize } from "@/components/ui";
 
@@ -52,7 +53,7 @@ export default function LogsPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = usePageSize("admin-logs", 50);
+  const [pageSize, setPageSize] = usePageSize("admin-logs");
   const [open, setOpen] = useState<Log | null>(null);
   const [exporting, setExporting] = useState(false);
   const toast = useToast();
@@ -151,23 +152,30 @@ export default function LogsPage() {
           </div>
           <div>
             <label className="label">Level</label>
-            <select className="input w-full sm:w-auto sm:min-w-32" value={level} onChange={(e) => reset(() => setLevel(e.target.value))}>
-              <option value="">All</option>
-              <option value="info">Info</option>
-              <option value="warn">Warnings (refused / failed)</option>
-              <option value="error">Errors</option>
-            </select>
+            <SearchSelect
+              className="w-full sm:w-auto sm:min-w-32"
+              aria-label="Level"
+              value={level}
+              onChange={(v) => reset(() => setLevel(v))}
+              emptyOption="All"
+              options={[
+                { value: "info", label: "Info" },
+                { value: "warn", label: "Warnings (refused / failed)" },
+                { value: "error", label: "Errors" },
+              ]}
+            />
           </div>
           <div>
             <label className="label">Person</label>
-            <select className="input w-full sm:w-auto sm:max-w-56" value={actor} onChange={(e) => reset(() => setActor(e.target.value))}>
-              <option value="">Everyone</option>
-              {users.data?.map((u) => (
-                <option key={u._id} value={u._id}>
-                  {u.name} ({u.email})
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              className="w-full sm:w-auto sm:max-w-56"
+              aria-label="Person"
+              value={actor}
+              onChange={(v) => reset(() => setActor(v))}
+              emptyOption="Everyone"
+              searchPlaceholder="Find a person…"
+              options={(users.data ?? []).map((u) => ({ value: u._id, label: u.name, hint: u.email }))}
+            />
           </div>
         </div>
         {list.loading && !d ? (

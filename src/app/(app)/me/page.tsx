@@ -266,25 +266,28 @@ function CallerSettingsForm({
             <label className="label" htmlFor="me-reminder">
               Reminder before each interview
             </label>
-            <select id="me-reminder" className="input" value={f.reminderMinutes} onChange={(e) => setF({ ...f, reminderMinutes: Number(e.target.value) })}>
-              {[0, 15, 30, 45, 60, 90, 120, 180, 240].map((m) => (
-                <option key={m} value={m}>
-                  {m === 0 ? "No reminder" : m < 60 ? `${m} minutes before` : `${m / 60} hour${m === 60 ? "" : "s"} before`}
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              id="me-reminder"
+              value={String(f.reminderMinutes)}
+              onChange={(v) => setF({ ...f, reminderMinutes: Number(v) })}
+              options={[0, 15, 30, 45, 60, 90, 120, 180, 240].map((m) => ({
+                value: String(m),
+                label: m === 0 ? "No reminder" : m < 60 ? `${m} minutes before` : `${m / 60} hour${m === 60 ? "" : "s"} before`,
+              }))}
+            />
           </div>
           <div>
             <label className="label" htmlFor="me-digest">
               Send tomorrow&apos;s schedule at
             </label>
-            <select id="me-digest" className="input tabular-nums" value={f.digestHour} onChange={(e) => setF({ ...f, digestHour: Number(e.target.value) })}>
-              {Array.from({ length: 24 }, (_, h) => (
-                <option key={h} value={h}>
-                  {hour(h)}
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              id="me-digest"
+              className="tabular-nums"
+              value={String(f.digestHour)}
+              onChange={(v) => setF({ ...f, digestHour: Number(v) })}
+              options={Array.from({ length: 24 }, (_, h) => ({ value: String(h), label: hour(h) }))}
+              searchPlaceholder="Find an hour…"
+            />
           </div>
         </div>
         <p className="hint mt-3">Times are in your time zone: {zoneName(timezone || DEFAULT_TZ)}.</p>

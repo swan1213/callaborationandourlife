@@ -231,21 +231,31 @@ export function AccountModal({
             </div>
             <div>
               <label className="label">Role</label>
-              <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
-                <option value="bidder">Bidder (generates applications)</option>
-                <option value="user">User (manages assigned profiles)</option>
-                <option value="caller">Caller (schedules and conducts interviews)</option>
-                <option value="admin">Admin</option>
-              </select>
+              <SearchSelect
+                aria-label="Role"
+                value={form.role}
+                onChange={(v) => setForm({ ...form, role: v as Role })}
+                options={[
+                  { value: "bidder", label: "Bidder (generates applications)" },
+                  { value: "user", label: "User (manages assigned profiles)" },
+                  { value: "caller", label: "Caller (schedules and conducts interviews)" },
+                  { value: "admin", label: "Admin" },
+                ]}
+              />
             </div>
             <div>
               <label className="label">Status</label>
-              <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                <option value="approved">Active</option>
-                <option value="suspended">Deactivated</option>
-                <option value="pending">Pending approval</option>
-                <option value="rejected">Rejected</option>
-              </select>
+              <SearchSelect
+                aria-label="Status"
+                value={form.status}
+                onChange={(v) => setForm({ ...form, status: v })}
+                options={[
+                  { value: "approved", label: "Active" },
+                  { value: "suspended", label: "Deactivated" },
+                  { value: "pending", label: "Pending approval" },
+                  { value: "rejected", label: "Rejected" },
+                ]}
+              />
             </div>
             {form.role === "bidder" ? (
               <div>
