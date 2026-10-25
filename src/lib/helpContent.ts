@@ -435,7 +435,7 @@ export const HELP_PAGES: HelpPage[] = [
     roles: STAFF,
     summary: "Job links found for any profile that the chosen profile hasn't applied to yet, listed once, ready to copy into Generate Resume.",
     steps: [
-      { title: "Choose a profile", detail: "Pick a profile first. The list shows every job link generated for any profile, minus the links this profile already has an application for (generated, submitted or not-generated)." },
+      { title: "Choose a profile", detail: "Click a profile in the list on the left (type in Search profiles to find one by name or title). The table shows every job link generated for any profile, minus the links this profile already has an application for (generated, submitted or not-generated)." },
       { title: "Read the tiles", detail: "Unique job links (found for any profile), Already applied (by this profile), Not applied yet (the list) and Copied (for this profile)." },
       { title: "Filter", detail: "Date range (YYYY-MM-DD, when the link was generated), Copied (Not copied / Copied) and search (company, role or URL)." },
       { title: "No repeats", detail: "A link generated more than once is listed once. Links that only differ by tracking parameters (utm_…, jr_id, ref, source), embed or search settings, \"www.\", capital letters, a trailing slash or an /apply page count as the same link; links that differ in the job id after \"?\" stay separate." },
