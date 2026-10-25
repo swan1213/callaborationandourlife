@@ -16,6 +16,9 @@ type ProfileOpt = {
   usedThisMonth: number;
 };
 
+/** The last profile picked here, so the page reopens on it. */
+const PROFILE_KEY = "tb-generate-profile";
+
 type Recent = { _id: string; company: string; jobTitle: string; status: string; createdAt: string; profile?: { label: string } };
 
 /** Numbered step heading. */
@@ -42,9 +45,26 @@ export default function GeneratePage() {
   const [error, setError] = useState("");
   const [duplicateId, setDuplicateId] = useState("");
 
+  // Start on the profile picked last time (if it is still assigned), else the first one.
   useEffect(() => {
-    if (!profileId && profiles.data?.length) setProfileId(profiles.data[0].id);
+    if (profileId || !profiles.data?.length) return;
+    let last = "";
+    try {
+      last = localStorage.getItem(PROFILE_KEY) ?? "";
+    } catch {
+      /* storage unavailable */
+    }
+    setProfileId(profiles.data.some((p) => p.id === last) ? last : profiles.data[0].id);
   }, [profiles.data, profileId]);
+
+  function pickProfile(id: string) {
+    setProfileId(id);
+    try {
+      localStorage.setItem(PROFILE_KEY, id);
+    } catch {
+      /* storage unavailable */
+    }
+  }
 
   async function generate(force = false) {
     setBusy(true);
@@ -129,7 +149,7 @@ export default function GeneratePage() {
                     key={p.id}
                     type="button"
                     aria-pressed={active}
-                    onClick={() => setProfileId(p.id)}
+                    onClick={() => pickProfile(p.id)}
                     className={`card w-full cursor-pointer p-4 text-left transition-[border-color,box-shadow] ${
                       active ? "border-indigo-500 ring-[3px] ring-indigo-500/15" : "hover:border-slate-300"
                     }`}
