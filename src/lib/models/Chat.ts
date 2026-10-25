@@ -32,12 +32,35 @@ const ChatMessageSchema = new Schema(
     sender: { type: Types.ObjectId, ref: "User", required: true },
     senderName: { type: String, default: "" },
     body: { type: String, required: true },
+    /** One entry per account per emoji, in the order they were added. */
+    reactions: {
+      type: [
+        {
+          _id: false,
+          emoji: { type: String, required: true },
+          user: { type: Types.ObjectId, ref: "User", required: true },
+          name: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );
 ChatMessageSchema.index({ conversation: 1, createdAt: -1 });
+// Polling picks up reactions on older messages by updatedAt.
+ChatMessageSchema.index({ conversation: 1, updatedAt: -1 });
 
-export type ChatMessageFields = { conversation: Types.ObjectId; sender: Types.ObjectId; senderName: string; body: string; createdAt: Date; updatedAt: Date };
+export type ChatReaction = { emoji: string; user: Types.ObjectId; name: string };
+export type ChatMessageFields = {
+  conversation: Types.ObjectId;
+  sender: Types.ObjectId;
+  senderName: string;
+  body: string;
+  reactions: ChatReaction[];
+  createdAt: Date;
+  updatedAt: Date;
+};
 export const ChatMessage: Model<ChatMessageFields> = defineModel("ChatMessage", ChatMessageSchema);
 
 /** How far each account has read each conversation (messages after `at` are unread). */

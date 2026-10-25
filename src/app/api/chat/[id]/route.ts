@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server";
 import { handler, HttpError, quietHandler, requireUser } from "@/lib/auth";
-import { ChatConversation, ChatMessage, type ChatMessageFields } from "@/lib/models/Chat";
+import { ChatConversation, ChatMessage } from "@/lib/models/Chat";
 import { User } from "@/lib/models/User";
-import { conversationFor, markRead, MAX_MESSAGE } from "@/lib/chat";
+import { conversationFor, markRead, MAX_MESSAGE, messageOut, type ChatMsg as Msg } from "@/lib/chat";
 import { oid } from "@/lib/query";
-import type { Types } from "mongoose";
 
 type Ctx = { params: Promise<{ id: string }> };
-type Msg = ChatMessageFields & { _id: Types.ObjectId };
 
 const PAGE = 50;
-const out = (m: Msg) => ({ _id: String(m._id), sender: String(m.sender), senderName: m.senderName, body: m.body, createdAt: m.createdAt });
+/** `now` is sent back this much early, so a reaction saved by a server with a slightly different clock isn't missed. */
+const CLOCK_SLACK_MS = 10_000;
 
 function when(v: string | null, name: string) {
   if (!v) return null;
@@ -23,6 +22,8 @@ function when(v: string | null, name: string) {
  * GET — messages, oldest first, and marks the conversation read.
  * `?after=ISO` returns messages from then on (polling; the client drops ones it already has);
  * `?before=ISO` the 50 before then (older history); neither: the latest 50.
+ * With `after`, `?changed=ISO` (the `now` of the previous response) also returns older messages whose reactions
+ * changed since then; the client replaces those in place.
  */
 export const GET = quietHandler(async (req: Request, { params }: Ctx) => {
   const me = await requireUser();
@@ -30,11 +31,17 @@ export const GET = quietHandler(async (req: Request, { params }: Ctx) => {
   const sp = new URL(req.url).searchParams;
   const after = when(sp.get("after"), "after");
   const before = when(sp.get("before"), "before");
+  const changed = when(sp.get("changed"), "changed");
+  const now = new Date(Date.now() - CLOCK_SLACK_MS);
 
   let messages: Msg[];
   let hasMore = false;
   if (after) {
-    messages = await ChatMessage.find({ conversation: c._id, createdAt: { $gte: after } }).sort({ createdAt: 1 }).limit(200).lean<Msg[]>();
+    const recent = { createdAt: { $gte: after } };
+    messages = await ChatMessage.find({ conversation: c._id, ...(changed ? { $or: [recent, { updatedAt: { $gte: changed } }] } : recent) })
+      .sort({ createdAt: 1 })
+      .limit(200)
+      .lean<Msg[]>();
   } else {
     const found = await ChatMessage.find({ conversation: c._id, ...(before ? { createdAt: { $lt: before } } : {}) })
       .sort({ createdAt: -1 })
@@ -55,8 +62,9 @@ export const GET = quietHandler(async (req: Request, { params }: Ctx) => {
         name: c.kind === "team" ? "Team chat" : (other?.name ?? "Deleted account"),
         other: c.kind === "direct" ? { _id: String(otherId ?? ""), name: other?.name ?? "Deleted account", avatar: other?.avatar ?? "", role: other?.role ?? "" } : null,
       },
-      messages: messages.map(out),
+      messages: messages.map(messageOut),
       hasMore,
+      now,
     },
     { headers: { "Cache-Control": "no-store" } }
   );
@@ -79,5 +87,5 @@ export const POST = handler(async (req: Request, { params }: Ctx) => {
     ),
     markRead(c._id, me._id, m.createdAt),
   ]);
-  return NextResponse.json({ message: out(m) });
+  return NextResponse.json({ message: messageOut(m) });
 });

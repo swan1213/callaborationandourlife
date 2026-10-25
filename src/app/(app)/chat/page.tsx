@@ -2,17 +2,22 @@
 
 import { Fragment, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Hash, MessageCirclePlus, Search, SendHorizontal, Users, X } from "lucide-react";
+import { ArrowLeft, Hash, MessageCirclePlus, Search, SendHorizontal, SmilePlus, Users, X } from "lucide-react";
 import { useToast } from "@/components/Alerts";
 import { Avatar } from "@/components/Avatar";
 import { useChat, type ChatConversation, type ChatPerson } from "@/components/Chat";
+import { EmojiPicker } from "@/components/EmojiPicker";
+import { isEmojiOnly } from "@/lib/emoji";
 import { PresenceAvatar, PresenceLabel, usePresence } from "@/components/Presence";
 import { api, fmtDate, fmtDateTime, Spinner } from "@/components/ui";
 
-type Msg = { _id: string; sender: string; senderName: string; body: string; createdAt: string };
-type Thread = { conversation: { _id: string; kind: "team" | "direct"; name: string; other: ChatPerson | null }; messages: Msg[]; hasMore: boolean };
+type Reaction = { emoji: string; users: { _id: string; name: string }[] };
+type Msg = { _id: string; sender: string; senderName: string; body: string; reactions: Reaction[]; createdAt: string };
+type Thread = { conversation: { _id: string; kind: "team" | "direct"; name: string; other: ChatPerson | null }; messages: Msg[]; hasMore: boolean; now: string };
 
 const POLL_MS = 3000;
+/** One-click reactions at the top of the reaction picker. */
+const QUICK_REACTIONS = ["👍", "❤️", "😂", "🎉", "😮", "😢", "🙏"];
 const MAX_MESSAGE = 4000;
 const ROLE_LABEL: Record<string, string> = { admin: "Admin", user: "User", caller: "Caller", bidder: "Bidder" };
 
@@ -198,14 +203,25 @@ function ThreadView({ id, me, onRead, onBack }: { id: string; me: string; onRead
   const stick = useRef(true);
   // Keeps the view in place when older messages are added above.
   const keepFrom = useRef<number | null>(null);
+  // Server time of the last load or poll: the next poll also asks for messages whose reactions changed since then.
+  const since = useRef("");
 
+  // New messages are added; ones already shown are replaced when their reactions changed.
   const merge = useCallback((incoming: Msg[], where: "end" | "start") => {
     setThread((t) => {
       if (!t) return t;
+      const byId = new Map(incoming.map((m) => [m._id, m]));
+      let changed = false;
+      const kept = t.messages.map((m) => {
+        const n = byId.get(m._id);
+        if (!n || JSON.stringify(n.reactions) === JSON.stringify(m.reactions)) return m;
+        changed = true;
+        return n;
+      });
       const have = new Set(t.messages.map((m) => m._id));
       const fresh = incoming.filter((m) => !have.has(m._id));
-      if (!fresh.length) return t;
-      return { ...t, messages: where === "end" ? [...t.messages, ...fresh] : [...fresh, ...t.messages] };
+      if (!fresh.length && !changed) return t;
+      return { ...t, messages: where === "end" ? [...kept, ...fresh] : [...fresh, ...kept] };
     });
   }, []);
 
@@ -215,6 +231,7 @@ function ThreadView({ id, me, onRead, onBack }: { id: string; me: string; onRead
       .then((t) => {
         if (!alive) return;
         stick.current = true;
+        since.current = t.now;
         setThread(t);
         onRead();
       })
@@ -230,11 +247,13 @@ function ThreadView({ id, me, onRead, onBack }: { id: string; me: string; onRead
     if (!loaded) return;
     const poll = () => {
       if (document.visibilityState !== "visible") return;
-      const p = last ? `?after=${encodeURIComponent(last)}` : "";
-      api<Thread>(`/api/chat/${id}${p}`)
+      const p = new URLSearchParams(last ? { after: last } : {});
+      if (last && since.current) p.set("changed", since.current);
+      api<Thread>(`/api/chat/${id}${p.size ? `?${p}` : ""}`)
         .then((t) => {
+          since.current = t.now;
           const el = scroller.current;
-          const fromOthers = t.messages.some((m) => m.sender !== me && m.createdAt !== last);
+          const fromOthers = t.messages.some((m) => m.sender !== me && m.createdAt > last);
           if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 80) stick.current = true;
           merge(t.messages, "end");
           if (fromOthers) onRead();
@@ -290,6 +309,33 @@ function ThreadView({ id, me, onRead, onBack }: { id: string; me: string; onRead
       setSending(false);
       input.current?.focus();
     }
+  }
+
+  /** Adds my reaction, or takes it back when I already reacted with that emoji. */
+  async function react(messageId: string, emoji: string) {
+    try {
+      const r = await api<{ message: Msg }>(`/api/chat/${id}/react`, { method: "POST", json: { messageId, emoji } });
+      merge([r.message], "end");
+    } catch (e) {
+      toast.error("Reaction not saved", (e as Error).message);
+    }
+  }
+
+  /** Puts the emoji where the caret is (or replaces the selection) and keeps typing there. */
+  function insertEmoji(emoji: string) {
+    const el = input.current;
+    const start = el?.selectionStart ?? draft.length;
+    const end = el?.selectionEnd ?? draft.length;
+    const next = draft.slice(0, start) + emoji + draft.slice(end);
+    if (next.length > MAX_MESSAGE) return;
+    setDraft(next);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(start + emoji.length, start + emoji.length);
+      el.style.height = "auto";
+      el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+    });
   }
 
   const c = thread?.conversation;
@@ -352,6 +398,7 @@ function ThreadView({ id, me, onRead, onBack }: { id: string; me: string; onRead
               const grouped = !newDay && prev?.sender === m.sender && new Date(m.createdAt).getTime() - new Date(prev.createdAt).getTime() < 5 * 60_000;
               const mine = m.sender === me;
               const person = byId.get(m.sender);
+              const big = isEmojiOnly(m.body);
               return (
                 <Fragment key={m._id}>
                   {newDay && (
@@ -363,20 +410,58 @@ function ThreadView({ id, me, onRead, onBack }: { id: string; me: string; onRead
                   )}
                   <div className={`flex gap-2 ${mine ? "flex-row-reverse" : ""} ${grouped ? "mt-0.5" : "mt-3"}`}>
                     <span className="w-7 shrink-0">{!mine && !grouped && <Avatar avatar={person?.avatar} name={m.senderName} size={28} />}</span>
-                    <div className={`flex max-w-[75%] min-w-0 flex-col ${mine ? "items-end" : "items-start"}`}>
+                    <div className={`group flex max-w-[75%] min-w-0 flex-col ${mine ? "items-end" : "items-start"}`}>
                       {!grouped && (
                         <span className="mb-0.5 text-[11px] text-slate-500">
                           {!mine && <span className="font-medium text-slate-700">{m.senderName} </span>}
                           {fmtDateTime(m.createdAt).slice(11)}
                         </span>
                       )}
-                      <div
-                        className={`rounded-2xl px-3 py-1.5 text-[13.5px] leading-relaxed break-words whitespace-pre-wrap ${mine ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-900"}`}
-                        title={fmtDateTime(m.createdAt)}
-                        style={{ overflowWrap: "anywhere" }}
-                      >
-                        {linkify(m.body, mine)}
+                      {/* The react button sits beside the bubble: shown on hover, always on touch screens. */}
+                      <div className={`flex max-w-full items-center gap-1 ${mine ? "flex-row-reverse" : ""}`}>
+                        <div
+                          className={
+                            big
+                              ? "min-w-0 text-4xl leading-tight"
+                              : `min-w-0 rounded-2xl px-3 py-1.5 text-[13.5px] leading-relaxed break-words whitespace-pre-wrap ${mine ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-900"}`
+                          }
+                          title={fmtDateTime(m.createdAt)}
+                          style={{ overflowWrap: "anywhere" }}
+                        >
+                          {linkify(m.body, mine)}
+                        </div>
+                        <EmojiPicker
+                          onPick={(e) => react(m._id, e)}
+                          quick={QUICK_REACTIONS}
+                          closeOnPick
+                          label="React"
+                          icon={<SmilePlus />}
+                          buttonClassName="btn btn-ghost btn-sm btn-icon shrink-0 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100 pointer-coarse:opacity-100"
+                        />
                       </div>
+                      {m.reactions.length > 0 && (
+                        <div className={`mt-1 flex flex-wrap gap-1 ${mine ? "justify-end" : ""}`}>
+                          {m.reactions.map((r) => {
+                            const minePick = r.users.some((u) => u._id === me);
+                            const names = r.users.map((u) => (u._id === me ? "You" : u.name)).join(", ");
+                            return (
+                              <button
+                                key={r.emoji}
+                                type="button"
+                                onClick={() => react(m._id, r.emoji)}
+                                title={`${names} reacted with ${r.emoji}`}
+                                aria-pressed={minePick}
+                                className={`inline-flex h-6 items-center gap-1 rounded-full border px-1.5 text-xs font-medium tabular-nums transition-colors ${
+                                  minePick ? "border-indigo-200 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                                }`}
+                              >
+                                <span className="text-sm leading-none">{r.emoji}</span>
+                                {r.users.length}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </Fragment>
@@ -415,6 +500,7 @@ function ThreadView({ id, me, onRead, onBack }: { id: string; me: string; onRead
           }}
           autoFocus
         />
+        <EmojiPicker onPick={insertEmoji} disabled={!thread} />
         <button type="submit" className="btn btn-primary h-10" disabled={!draft.trim() || sending || !thread} aria-label="Send">
           {sending ? <Spinner className="size-4" /> : <SendHorizontal />}
           <span className="hidden sm:inline">Send</span>

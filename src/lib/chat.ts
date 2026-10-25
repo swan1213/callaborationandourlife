@@ -2,10 +2,32 @@
 // The page (app/(app)/chat) and the header button poll the API; there is no socket.
 import { Types } from "mongoose";
 import { HttpError } from "./auth";
-import { ChatConversation, ChatRead, type ChatConversationFields } from "./models/Chat";
+import { ChatConversation, ChatRead, type ChatConversationFields, type ChatMessageFields } from "./models/Chat";
 import type { UserDoc } from "./models/User";
 
 export const MAX_MESSAGE = 4000;
+/** Different emoji one message can collect. */
+export const MAX_REACTION_KINDS = 20;
+
+export type ChatMsg = ChatMessageFields & { _id: Types.ObjectId };
+
+/** A message as the API sends it: reactions grouped by emoji (first added first), with who added each. */
+export function messageOut(m: ChatMsg) {
+  const groups = new Map<string, { _id: string; name: string }[]>();
+  for (const r of m.reactions ?? []) {
+    const users = groups.get(r.emoji) ?? [];
+    users.push({ _id: String(r.user), name: r.name });
+    groups.set(r.emoji, users);
+  }
+  return {
+    _id: String(m._id),
+    sender: String(m.sender),
+    senderName: m.senderName,
+    body: m.body,
+    reactions: [...groups].map(([emoji, users]) => ({ emoji, users })),
+    createdAt: m.createdAt,
+  };
+}
 /** Unread counts stop here (shown as "99+"). */
 export const UNREAD_CAP = 99;
 

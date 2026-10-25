@@ -25,6 +25,16 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-25-7",
+    date: "2026-10-25",
+    title: "Emoji in chat",
+    changes: [
+      { text: "Chat has an emoji button next to Send: pick from categories, search by name, and your recent ones come first." },
+      { text: "React to any message: hover it (or tap the smiley on a phone) and pick an emoji. Click a reaction to add yours or take it back; hover it to see who reacted." },
+      { text: "A message of just one to three emoji shows large." },
+    ],
+  },
+  {
     id: "2026-10-25-6",
     date: "2026-10-25",
     title: "Resumes use gpt-4.1-mini",
