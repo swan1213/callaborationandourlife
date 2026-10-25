@@ -25,6 +25,18 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-25-6",
+    date: "2026-10-25",
+    title: "Resumes use gpt-4.1-mini",
+    changes: [
+      { text: "Resumes and cover letters are now generated with gpt-4.1-mini.", roles: ["admin"] },
+      {
+        text: "New API keys start with gpt-4.1-mini and its prices ($0.40 in / $1.60 out per 1M tokens), so spend estimates match.",
+        roles: ["admin"],
+      },
+    ],
+  },
+  {
     id: "2026-10-25-5",
     date: "2026-10-25",
     title: "Job links fits the screen",
