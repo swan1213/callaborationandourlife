@@ -25,6 +25,28 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-25",
+    date: "2026-10-25",
+    title: "Team chat and a new Job links page",
+    changes: [
+      { text: "New Chat: talk with the whole team in Team chat, or privately with one person. The chat icon in the top bar shows how many messages are unread.", roles: ALL },
+      {
+        text: "Job links now works per profile: choose a profile and the page lists every job link found for other profiles that this profile hasn't applied to yet, each listed once.",
+        roles: ["admin", "user"],
+      },
+      {
+        text: "Copy selected, Copy all links and each row's copy icon mark links as Copied for that profile, so you can see what you've already taken. Downloading TXT / CSV was removed.",
+        roles: ["admin", "user"],
+      },
+      { text: "The same job pasted with different tracking (jr_id, utm_…, embed or search settings, www., capital letters) now counts as one link everywhere, including Generate Resume.", roles: APPS },
+    ],
+    steps: [
+      { text: "Reload any TailorBid tab that was open before this update.", roles: ALL },
+      { text: "Open Chat from the top bar or the menu, or click the chat icon next to someone in Who is online.", roles: ALL },
+      { text: "Open Manage → Job Links, choose a profile, then tick links and click Copy selected to paste them into Generate Resume.", roles: ["admin", "user"] },
+    ],
+  },
+  {
     id: "2026-10-23",
     date: "2026-10-23",
     title: "Higher ATS scores and a new AI review",
