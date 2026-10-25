@@ -91,7 +91,7 @@ export const HELP_PAGES: HelpPage[] = [
     roles: WORKSPACE,
     summary: "Create a tailored resume, cover letter and job description from a full-time job posting.",
     steps: [
-      { title: "Choose the profile", detail: "Pick the candidate profile to apply with. The remaining monthly quota is shown under it." },
+      { title: "Choose the profile", detail: "Pick the candidate profile to apply with (type in Search profiles to find one by name, title or location). The remaining monthly quota is shown under it." },
       { title: "Paste the job URL", detail: "Paste the link to the job posting (Greenhouse, Lever, Workday, company sites…) and click Generate resume, cover letter & JD." },
       { title: "If the page can't be read", detail: "Some sites block reading, and some links have no job description (the job is closed, or the page lists jobs instead of describing one). Nothing is generated: the attempt is saved as Not-generated with the reason, and its page opens so you can paste the job description there. Or tick Paste the job description manually before you click Generate (at least 100 characters)." },
       { title: "Download the ZIP", detail: "When it's ready you're taken to the application. Download the ZIP: resume (PDF + DOCX), cover letter (PDF + DOCX) and job description (DOCX)." },
@@ -147,11 +147,12 @@ export const HELP_PAGES: HelpPage[] = [
     summary: "One application: the tailored resume, cover letter, job description, screenshots and submission.",
     steps: [
       { title: "Review the documents", detail: "Use the Resume, Cover letter and Job description tabs (Chat is for interview practice, see below). You can edit the cover letter and click Save cover letter; the next download uses it. Click Download ZIP when you're ready to apply." },
+      { title: "Save to folder (Chrome / Edge)", detail: "Save to folder writes the files straight into a folder on your computer as [Date]/[Profile]/[Job title]_[Company]/, with nothing to unzip. The first time, pick or create a folder (for example Applications inside Downloads; the browser doesn't allow Downloads itself). It is remembered in this browser; the folder button next to it changes it. Files with the same name are replaced." },
       { title: "Open the job posting", detail: "Click Open job posting to apply on the company's site." },
       { title: "Attach screenshots", detail: "Upload, drag or paste (Ctrl+V) the confirmation screenshot. Click a thumbnail to view it full size." },
       { title: "Submit", detail: "Click Submit application to log the submission. To undo it, click Mark as not submitted or remove the last screenshot (not possible once paid)." },
       { title: "Not-generated applications", detail: "Paste the job description (at least 100 characters) and click Generate resume, cover letter & JD, or click Try the URL again." },
-      { title: "Practice the interview (Chat tab)", detail: "Open the Chat tab: it starts with \"Tell me about yourself.\" and the candidate's answer for this job. Ask any interview question (Enter sends, Shift+Enter for a new line) or click a suggested one; the candidate answers in full, in the first person, from this application's resume, cover letter, job description and profile. Copy answer copies one; Start over begins again." },
+      { title: "Practice the interview (Chat tab)", detail: "Open the Chat tab: it starts empty. Ask any interview question (Enter sends, Shift+Enter for a new line) or click a suggested one; the candidate answers in full, in the first person, from this application's resume, cover letter, job description and profile. Copy answer copies one; Start over begins again." },
     ],
     tips: ["Use Notes for the recruiter's name, a referral or a follow-up date, then click Save notes.", "If the company or role is missing, click Add company & role.", "The chat isn't saved: switching to another tab clears it. Answers appear as they are written and never invent employers, projects or numbers."],
   },

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowRight, Check, FileSpreadsheet, Inbox, Link2, Sparkles } from "lucide-react";
+import { ArrowRight, Check, FileSpreadsheet, Inbox, Link2, Search, Sparkles } from "lucide-react";
 import { Alert, api, ApiError, Badge, EmptyState, fmtDateTime, PageHeader, Spinner, CardSkeleton, useAsync } from "@/components/ui";
 
 type ProfileOpt = {
@@ -34,6 +34,7 @@ export default function GeneratePage() {
   const recent = useAsync(() => api<{ items: Recent[] }>("/api/applications?limit=5").then((r) => r.items), []);
 
   const [profileId, setProfileId] = useState("");
+  const [profileQ, setProfileQ] = useState("");
   const [jobUrl, setJobUrl] = useState("");
   const [manual, setManual] = useState(false);
   const [jobText, setJobText] = useState("");
@@ -69,6 +70,12 @@ export default function GeneratePage() {
   const selected = profiles.data?.find((p) => p.id === profileId);
   const quotaFull = !!selected && selected.monthlyQuota > 0 && selected.usedThisMonth >= selected.monthlyQuota;
   const canSubmit = !!profileId && !busy && !quotaFull && (manual ? jobText.trim().length >= 100 : /^https?:\/\/\S+/.test(jobUrl.trim()));
+  // Every word typed must appear in the profile's name, full name, title or location.
+  const pq = profileQ.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const shownProfiles = (profiles.data ?? []).filter((p) => {
+    const text = [p.label, p.fullName, p.title, p.location].join(" ").toLowerCase();
+    return pq.every((w) => text.includes(w));
+  });
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -100,8 +107,20 @@ export default function GeneratePage() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="min-w-0 space-y-3 lg:col-span-1">
             <StepTitle n={1} title="Choose a profile" />
+            <div className="relative">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+              <input
+                className="input pl-9"
+                type="search"
+                placeholder="Search profiles"
+                value={profileQ}
+                onChange={(e) => setProfileQ(e.target.value)}
+                aria-label="Search profiles"
+              />
+            </div>
             <div className="space-y-2">
-              {profiles.data.map((p) => {
+              {!shownProfiles.length && <p className="px-1 py-4 text-center text-sm text-slate-500">No profile matches &ldquo;{profileQ.trim()}&rdquo;.</p>}
+              {shownProfiles.map((p) => {
                 const full = p.monthlyQuota > 0 && p.usedThisMonth >= p.monthlyQuota;
                 const active = p.id === profileId;
                 const ratio = p.monthlyQuota > 0 ? Math.min(1, p.usedThisMonth / p.monthlyQuota) : 0;

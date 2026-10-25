@@ -25,6 +25,25 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-25-8",
+    date: "2026-10-25",
+    title: "Save to folder, profile search and a cleaner interview chat",
+    changes: [
+      {
+        text: "On an application, Save to folder (Chrome / Edge) puts the files straight into a folder on your computer as Date / Profile / Job title_Company, with nothing to unzip. Download ZIP on that page uses the same folders.",
+        roles: APPS,
+      },
+      { text: "Generate has a Search profiles box: type a name, title or location to find the profile.", roles: APPS },
+      { text: "The interview practice Chat tab now starts empty; Tell me about yourself is the first suggested question.", roles: APPS },
+    ],
+    steps: [
+      {
+        text: "The first time you click Save to folder, pick or create a folder (for example Applications inside Downloads). It is remembered; the folder button next to it changes it.",
+        roles: APPS,
+      },
+    ],
+  },
+  {
     id: "2026-10-25-7",
     date: "2026-10-25",
     title: "Emoji in chat",

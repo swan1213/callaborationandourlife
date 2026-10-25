@@ -13,8 +13,9 @@ const idOf = (p: unknown) => String(p && typeof p === "object" && "_id" in p ? (
  * ZIP folder per application: "[Date]/[Profile Name]/[Index]_[Job Title]_[Company Name]", e.g. "2026-10-21/Jane_Doe/03_Backend_Engineer_Acme_Corp".
  * Date is the generation day in the report time zone (Settings); Index is the application's place among everything that
  * profile generated that day (01 = first), so it is the same in every download.
+ * `index: false` leaves the index out: "[Date]/[Profile Name]/[Job Title]_[Company Name]" (the application page).
  */
-export async function applicationFolders(apps: Source[]): Promise<Map<string, string>> {
+export async function applicationFolders(apps: Source[], { index = true } = {}): Promise<Map<string, string>> {
   const tz = (await getSettings()).reportTimezone || "America/New_York";
   const profileIds = [...new Set(apps.map((a) => idOf(a.profile)).filter(Boolean))];
   const labels = new Map(
@@ -30,7 +31,7 @@ export async function applicationFolders(apps: Source[]): Promise<Map<string, st
   const rank = new Map<string, number>();
   await Promise.all(
     [...groups.values()].map(async ({ profile, day }) => {
-      if (!profile) return;
+      if (!profile || !index) return;
       const { start, end } = dayRange(day, tz);
       const sameDay = await Application.find({ profile, status: { $ne: "not_generated" }, createdAt: { $gte: start, $lt: end } })
         .sort({ createdAt: 1, _id: 1 })
@@ -48,7 +49,7 @@ export async function applicationFolders(apps: Source[]): Promise<Map<string, st
     const profile = safeName(labels.get(idOf(a.profile)) || a.profileLabel || "Profile");
     const title = safeName(a.jobTitle || "Role");
     const company = safeName(a.company || "Company");
-    const base = `${day}/${profile}/${String(rank.get(id) ?? 0).padStart(2, "0")}_${title}_${company}`;
+    const base = `${day}/${profile}/${index ? `${String(rank.get(id) ?? 0).padStart(2, "0")}_` : ""}${title}_${company}`;
     let folder = base;
     for (let n = 2; used.has(folder); n++) folder = `${base}_${n}`;
     used.add(folder);

@@ -4,7 +4,7 @@ import { applicationZip, coverLetterPdf, resumePdf, zipFileName, zipResponse, ty
 import { oid } from "@/lib/query";
 import { applicationFileBases, applicationFolders } from "@/lib/zipLayout";
 
-/** ZIP of all documents ([Date]/[Profile]/[Index]_[Job Title]_[Company]/…, see zipLayout.ts), or `?format=resume-pdf` / `?format=cover-pdf` for just the resume or cover letter PDF, named [Date]_[Profile]_[Index]_[Job Title]_[Company]_Resume.pdf. */
+/** ZIP of all documents ([Date]/[Profile]/[Index]_[Job Title]_[Company]/…, see zipLayout.ts; `?layout=job` leaves out [Index]_), or `?format=resume-pdf` / `?format=cover-pdf` for just the resume or cover letter PDF, named [Date]_[Profile]_[Index]_[Job Title]_[Company]_Resume.pdf. */
 export const GET = handler(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const user = await requireUser();
   const app = await Application.findById(oid((await params).id)).lean<
@@ -15,7 +15,8 @@ export const GET = handler(async (req: Request, { params }: { params: Promise<{ 
   if (!app || (!isOwner && !isRep && user.role !== "admin")) throw new HttpError(404, "Application not found");
   if (!app.resume) throw new HttpError(400, "This application has not been generated yet. Add the job description first.");
 
-  const format = new URL(req.url).searchParams.get("format");
+  const sp = new URL(req.url).searchParams;
+  const format = sp.get("format");
   if (format === "resume-pdf" || format === "cover-pdf") {
     const base = (await applicationFileBases([app])).get(String(app._id))!;
     const name = `${base}_${format === "resume-pdf" ? "Resume" : "Cover_Letter"}.pdf`;
@@ -28,6 +29,6 @@ export const GET = handler(async (req: Request, { params }: { params: Promise<{ 
       },
     });
   }
-  const folder = (await applicationFolders([app])).get(String(app._id))!;
+  const folder = (await applicationFolders([app], { index: sp.get("layout") !== "job" })).get(String(app._id))!;
   return zipResponse(await applicationZip(app, folder), zipFileName(app));
 });

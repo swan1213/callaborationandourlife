@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { Briefcase, CircleCheck, Clock, Download, ExternalLink, FileText, Mail, MessagesSquare, Pencil, RefreshCw, Send, Sparkles, Trash2, TriangleAlert, Undo2 } from "lucide-react";
+import { Briefcase, CircleCheck, Clock, Download, ExternalLink, FileText, FolderCog, FolderDown, Mail, MessagesSquare, Pencil, RefreshCw, Send, Sparkles, Trash2, TriangleAlert, Undo2 } from "lucide-react";
 import ScreenshotUploader from "@/components/ScreenshotUploader";
 import Lightbox, { type Slide } from "@/components/Lightbox";
 import PostingLink from "@/components/PostingLink";
@@ -15,6 +15,7 @@ import InterviewChat from "@/components/InterviewChat";
 import { useRole } from "@/components/AppShell";
 import { useConfirm, useToast } from "@/components/Alerts";
 import { isUnknownCompany, isUntitledRole, missingJobInfo } from "@/lib/jobInfo";
+import { canSaveToFolder, chooseFolder, savedFolderName, saveZipToFolder } from "@/lib/saveToFolder";
 
 type Detail = {
   /** Submit works without a screenshot for this application's owner. */
@@ -65,6 +66,14 @@ export default function ApplicationDetail({
   const [viewer, setViewer] = useState<{ slides: Slide[]; start: number } | null>(null);
   const [fixing, setFixing] = useState<{ reason?: string } | null>(null);
   const role = useRole();
+  // Save to folder needs the File System Access API (desktop Chrome / Edge); elsewhere only the ZIP is offered.
+  const [folderApi, setFolderApi] = useState(false);
+  const [folderName, setFolderName] = useState("");
+  useEffect(() => {
+    if (!canSaveToFolder()) return;
+    setFolderApi(true);
+    savedFolderName().then(setFolderName);
+  }, []);
 
   useEffect(() => {
     if (app) {
@@ -89,11 +98,38 @@ export default function ApplicationDetail({
   async function download() {
     setBusy("download");
     try {
-      await downloadFile(`/api/applications/${id}/download`, "application.zip");
+      await downloadFile(`/api/applications/${id}/download?layout=job`, "application.zip");
     } catch (e) {
       toast.error("Download failed", (e as Error).message);
     } finally {
       setBusy("");
+    }
+  }
+
+  async function saveToFolder() {
+    setBusy("save");
+    try {
+      const where = await saveZipToFolder(`/api/applications/${id}/download?layout=job`);
+      if (where) {
+        setFolderName(where.split("/")[0]);
+        toast.success("Saved to folder", where);
+      }
+    } catch (e) {
+      toast.error("Couldn't save to the folder", (e as Error).message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function changeFolder() {
+    try {
+      const dir = await chooseFolder();
+      if (dir) {
+        setFolderName(dir.name);
+        toast.success("Folder set", `Applications will be saved in "${dir.name}".`);
+      }
+    } catch (e) {
+      toast.error("Couldn't use that folder", (e as Error).message);
     }
   }
 
@@ -128,9 +164,36 @@ export default function ApplicationDetail({
                 <Pencil /> Add company & role
               </button>
             )}
-            <button className="btn btn-primary" onClick={download} disabled={busy === "download"}>
-              {busy === "download" ? <Spinner /> : <Download />} Download ZIP
-            </button>
+            {folderApi ? (
+              <>
+                <button className="btn btn-secondary" onClick={download} disabled={busy === "download"}>
+                  {busy === "download" ? <Spinner /> : <Download />} Download ZIP
+                </button>
+                <div className="flex">
+                  <button
+                    className="btn btn-primary rounded-r-none"
+                    onClick={saveToFolder}
+                    disabled={busy === "save"}
+                    title={folderName ? `Save into ${folderName}/[Date]/[Profile]/[Job]` : "Choose a folder, then save into [Date]/[Profile]/[Job]"}
+                  >
+                    {busy === "save" ? <Spinner /> : <FolderDown />} Save to folder
+                  </button>
+                  <button
+                    className="btn btn-primary btn-icon rounded-l-none border-l border-white/25"
+                    onClick={changeFolder}
+                    disabled={busy === "save"}
+                    aria-label="Change folder"
+                    title={folderName ? `Saving into "${folderName}". Click to change.` : "Choose the folder"}
+                  >
+                    <FolderCog />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button className="btn btn-primary" onClick={download} disabled={busy === "download"}>
+                {busy === "download" ? <Spinner /> : <Download />} Download ZIP
+              </button>
+            )}
           </>
         }
       />
@@ -155,10 +218,25 @@ export default function ApplicationDetail({
             <div className="text-sm font-semibold text-emerald-800">Your tailored application is ready</div>
             <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-700 marker:text-slate-400">
               <li>
-                <button className="link cursor-pointer underline" onClick={download}>
-                  Download the ZIP
-                </button>{" "}
-                (resume PDF + DOCX, cover letter PDF + DOCX, job description DOCX).
+                {folderApi ? (
+                  <>
+                    <button className="link cursor-pointer underline" onClick={saveToFolder}>
+                      Save to folder
+                    </button>{" "}
+                    into [Date]/[Profile]/[Job] (resume PDF + DOCX, cover letter PDF + DOCX, job description DOCX), or{" "}
+                    <button className="link cursor-pointer underline" onClick={download}>
+                      download the ZIP
+                    </button>
+                    .
+                  </>
+                ) : (
+                  <>
+                    <button className="link cursor-pointer underline" onClick={download}>
+                      Download the ZIP
+                    </button>{" "}
+                    (resume PDF + DOCX, cover letter PDF + DOCX, job description DOCX).
+                  </>
+                )}
               </li>
               <li>Apply on the job site{app.jobUrl ? " using the posting link above" : ""}.</li>
               <li>

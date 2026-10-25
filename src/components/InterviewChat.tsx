@@ -6,9 +6,9 @@ import { Spinner } from "./ui";
 
 type Turn = { role: "user" | "assistant"; content: string };
 
-const FIRST_QUESTION = "Tell me about yourself.";
 /** One click asks these; the answers come from this application's resume and job description. */
 const SUGGESTIONS = [
+  "Tell me about yourself.",
   "Why do you want to work here?",
   "Walk me through the hardest project you've worked on.",
   "Why are you leaving your current job?",
@@ -19,7 +19,7 @@ const SUGGESTIONS = [
 
 /**
  * Interview practice on an application: you ask as the interviewer, the AI answers as the candidate
- * (api/applications/[id]/chat). The "Chat" tab of an application: opens with "Tell me about yourself."
+ * (api/applications/[id]/chat). The "Chat" tab of an application: starts empty until the first question.
  * Nothing is saved: leaving the tab clears the chat.
  */
 export default function InterviewChat({ appId }: { appId: string }) {
@@ -78,12 +78,8 @@ export default function InterviewChat({ appId }: { appId: string }) {
     [appId]
   );
 
-  // Open with the classic first question; leaving the tab stops an answer that is still streaming.
-  // (React's development double mount cancels the first request and the second one asks again.)
-  useEffect(() => {
-    ask(FIRST_QUESTION, []);
-    return () => abort.current?.abort();
-  }, [ask]);
+  // Leaving the tab stops an answer that is still streaming.
+  useEffect(() => () => abort.current?.abort(), []);
 
   // Keep the newest message in view, scrolling only the message list (not the page).
   useEffect(() => {
@@ -102,7 +98,7 @@ export default function InterviewChat({ appId }: { appId: string }) {
   };
   const restart = () => {
     setTurns([]);
-    ask(FIRST_QUESTION, []);
+    setError("");
   };
   const asked = new Set(turns.filter((t) => t.role === "user").map((t) => t.content));
 
@@ -113,6 +109,9 @@ export default function InterviewChat({ appId }: { appId: string }) {
       </p>
 
       <div ref={list} className="max-h-[60vh] min-h-80 space-y-4 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50/60 p-4">
+        {!turns.length && !busy && (
+          <p className="flex min-h-72 items-center justify-center text-center text-sm text-slate-400">Ask an interview question below, or click a suggested one.</p>
+        )}
         {turns.map((t, i) =>
           t.role === "user" ? (
             <div key={i} className="flex justify-end">
@@ -172,7 +171,7 @@ export default function InterviewChat({ appId }: { appId: string }) {
         </button>
       </form>
       <div className="mt-2 flex justify-end">
-        <button type="button" className="btn btn-ghost btn-sm text-xs" onClick={restart} disabled={busy}>
+        <button type="button" className="btn btn-ghost btn-sm text-xs" onClick={restart} disabled={busy || !turns.length}>
           <RotateCcw className="size-3.5" /> Start over
         </button>
       </div>
