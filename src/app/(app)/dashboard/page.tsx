@@ -45,6 +45,12 @@ export default function GeneratePage() {
   const [error, setError] = useState("");
   const [duplicateId, setDuplicateId] = useState("");
 
+  // ?url=… (the Generate button on a job link in chat) fills in the job URL.
+  useEffect(() => {
+    const url = new URLSearchParams(window.location.search).get("url");
+    if (url && /^https?:\/\//i.test(url)) setJobUrl(url);
+  }, []);
+
   // Start on the profile picked last time (if it is still assigned), else the first one.
   useEffect(() => {
     if (profileId || !profiles.data?.length) return;

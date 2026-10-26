@@ -15,6 +15,7 @@ function configured() {
 }
 
 export const SCREENSHOT_FOLDER = `${process.env.CLOUDINARY_ROOT_FOLDER || "tailorbid"}/screenshots`;
+export const CHAT_FOLDER = `${process.env.CLOUDINARY_ROOT_FOLDER || "tailorbid"}/chat`;
 
 /** Signature for a direct browser → Cloudinary upload (bypasses Vercel's 4.5 MB body limit). */
 export function signUpload(folder: string) {

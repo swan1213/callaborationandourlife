@@ -20,6 +20,45 @@ export type ChatConversation = {
 
 const POLL_MS = 15_000;
 
+/** New-message sound: on unless turned off on the chat page (per browser). */
+const SOUND_KEY = "chat-sound";
+export function chatSoundOn() {
+  try {
+    return localStorage.getItem(SOUND_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+export function setChatSound(on: boolean) {
+  try {
+    localStorage.setItem(SOUND_KEY, on ? "on" : "off");
+  } catch {
+    /* storage unavailable */
+  }
+}
+let audio: AudioContext | null = null;
+/** A short two-note chime (generated, no audio file). Browsers only allow it after the person has clicked the page once. */
+export function playChatSound() {
+  if (!chatSoundOn()) return;
+  try {
+    audio ??= new AudioContext();
+    const t = audio.currentTime;
+    for (const [freq, start] of [[880, 0], [1320, 0.12]] as const) {
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t + start);
+      gain.gain.exponentialRampToValueAtTime(0.12, t + start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + start + 0.25);
+      osc.connect(gain).connect(audio.destination);
+      osc.start(t + start);
+      osc.stop(t + start + 0.3);
+    }
+  } catch {
+    /* no audio */
+  }
+}
+
 type ChatState = { me: string; conversations: ChatConversation[]; unread: number; loaded: boolean; refresh: () => void };
 const ChatContext = createContext<ChatState>({ me: "", conversations: [], unread: 0, loaded: false, refresh: () => {} });
 export const useChat = () => useContext(ChatContext);
@@ -45,11 +84,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { me: string; conversations: ChatConversation[]; unread: number } | null) => {
         if (!d) return;
-        // Announce conversations whose unread count went up since the last poll (not on the first load).
-        if (seen.current && !quiet.current)
+        // Announce conversations whose unread count went up since the last poll (not on the first load): a toast and
+        // the sound elsewhere; on the chat page only the sound, and not for the conversation that is open.
+        if (seen.current) {
+          const open = quiet.current ? new URLSearchParams(window.location.search).get("c") : null;
+          let ding = false;
           for (const c of d.conversations)
-            if (c.unread > (seen.current.get(c._id) ?? 0) && c.lastMessage && !c.lastMessage.mine)
-              toast.info(c.kind === "team" ? `${c.lastMessage.senderName} in Team chat` : `Message from ${c.lastMessage.senderName}`, c.lastMessage.body.slice(0, 140));
+            if (c.unread > (seen.current.get(c._id) ?? 0) && c.lastMessage && !c.lastMessage.mine && c._id !== open) {
+              ding = true;
+              if (!quiet.current)
+                toast.info(c.kind === "team" ? `${c.lastMessage.senderName} in Team chat` : `Message from ${c.lastMessage.senderName}`, c.lastMessage.body.slice(0, 140));
+            }
+          if (ding) playChatSound();
+        }
         seen.current = new Map(d.conversations.map((c) => [c._id, c.unread]));
         setState({ ...d, loaded: true });
       })

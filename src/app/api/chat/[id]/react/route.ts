@@ -14,7 +14,7 @@ export const POST = handler(async (req: Request, { params }: Ctx) => {
   const b = await req.json().catch(() => ({}));
   const emoji = typeof b?.emoji === "string" ? b.emoji.trim() : "";
   if (!isSingleEmoji(emoji)) throw new HttpError(400, "Pick one emoji");
-  const match = { _id: oid(typeof b?.messageId === "string" ? b.messageId : "", "message"), conversation: c._id };
+  const match = { _id: oid(typeof b?.messageId === "string" ? b.messageId : "", "message"), conversation: c._id, deletedAt: null };
   const mine = { user: me._id, emoji };
 
   const removed = await ChatMessage.updateOne({ ...match, reactions: { $elemMatch: mine } }, { $pull: { reactions: mine } });

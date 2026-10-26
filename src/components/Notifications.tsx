@@ -3,6 +3,7 @@
 import {
   AlarmClock,
   ArrowRight,
+  AtSign,
   Bell,
   CalendarCheck,
   CalendarClock,
@@ -60,6 +61,7 @@ const KIND_ICON: Record<string, IconType> = {
   "feedback-new": MessageSquare,
   "feedback-reply": MessageSquareReply,
   milestone: Trophy,
+  "chat-mention": AtSign,
 };
 const TONE_STYLE: Record<Note["tone"], string> = {
   info: "border-indigo-200 bg-indigo-50 text-indigo-600",

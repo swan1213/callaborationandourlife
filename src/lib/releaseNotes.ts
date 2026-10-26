@@ -25,6 +25,22 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-26-3",
+    date: "2026-10-26",
+    title: "Chat: mentions, screenshots, replies and more",
+    changes: [
+      { text: "@mention someone in Team chat (or @admins): they get a notification in the bell and a desktop alert." },
+      { text: "Paste screenshots with Ctrl+V, drag images in, or use the image button. Click an image to see it full size." },
+      { text: "Reply to a message with a quote, edit your messages for 15 minutes, and delete them." },
+      { text: "Admins can pin important messages (rules, prices) to the top of Team chat.", roles: ["admin"] },
+      { text: "Pinned messages show at the top of Team chat; click to jump to one." },
+      { text: "Direct messages send a desktop alert, and there's a sound for new messages (the bell next to New message turns it off)." },
+      { text: "See when someone is typing, and search a conversation with the magnifier." },
+      { text: "Job links in chat show a card with a Generate button that opens Generate with the link filled in.", roles: ["admin", "user", "bidder"] },
+    ],
+    steps: [{ text: "Hover a message to reply, react or open ⋯ for more." }],
+  },
+  {
     id: "2026-10-26-2",
     date: "2026-10-26",
     title: "See who read your messages",

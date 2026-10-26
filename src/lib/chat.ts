@@ -11,10 +11,26 @@ export const MAX_REACTION_KINDS = 20;
 
 export type ChatMsg = ChatMessageFields & { _id: Types.ObjectId };
 
+/** Your own messages can be edited for this long after sending. */
+export const EDIT_WINDOW_MS = 15 * 60_000;
+/** Images per message. */
+export const MAX_IMAGES = 6;
+/** Pinned messages kept on the team chat. */
+export const MAX_PINS = 5;
+
+/** One line for previews (conversation list, pins, replies, notifications): the text, or "📷 Photo". */
+export function preview(m: { body?: string; images?: unknown[]; deletedAt?: Date | null }, max = 200) {
+  if (m.deletedAt) return "Message deleted";
+  const text = (m.body ?? "").replace(/\s+/g, " ").trim();
+  if (text) return text.slice(0, max);
+  return m.images?.length ? (m.images.length > 1 ? `📷 ${m.images.length} photos` : "📷 Photo") : "";
+}
+
 /** A message as the API sends it: reactions grouped by emoji (first added first), with who added each. */
 export function messageOut(m: ChatMsg) {
   const groups = new Map<string, { _id: string; name: string }[]>();
-  for (const r of m.reactions ?? []) {
+  const deleted = !!m.deletedAt;
+  for (const r of deleted ? [] : (m.reactions ?? [])) {
     const users = groups.get(r.emoji) ?? [];
     users.push({ _id: String(r.user), name: r.name });
     groups.set(r.emoji, users);
@@ -23,8 +39,13 @@ export function messageOut(m: ChatMsg) {
     _id: String(m._id),
     sender: String(m.sender),
     senderName: m.senderName,
-    body: m.body,
+    body: deleted ? "" : (m.body ?? ""),
+    images: deleted ? [] : (m.images ?? []).map((i) => ({ url: i.url, width: i.width ?? null, height: i.height ?? null })),
+    replyTo: !deleted && m.replyTo?.message ? { _id: String(m.replyTo.message), senderName: m.replyTo.senderName, body: m.replyTo.body, image: !!m.replyTo.image } : null,
+    mentions: deleted ? [] : (m.mentions ?? []).map((x) => ({ _id: String(x.user), name: x.name })),
     reactions: [...groups].map(([emoji, users]) => ({ emoji, users })),
+    edited: !!m.editedAt,
+    deleted,
     createdAt: m.createdAt,
   };
 }
