@@ -226,7 +226,10 @@ transferable-skills application where direct experience is missing) and never cl
 Reply in plain text, not a file. At the very start of your reply, output exactly these three lines:
 COMPANY: [Exact company name from the job description]
 ROLE: [Exact job title from the job description]
-HEADLINE: [The target professional headline shown under the candidate's name]
+HEADLINE: [The professional headline under the candidate's name. Write it yourself: the candidate's real level and
+discipline from their background, plus one or two focus areas this job cares about, e.g. "Senior Software Engineer |
+Optical & AI Networking". Do NOT copy the posting's job title word for word, never a title or seniority the candidate
+hasn't held, no company names, at most 8 words.]
 
 Then a blank line, then the resume content the instructions above ask for. Do not repeat the candidate's name or
 contact details (the application adds the header). Start every section title on its own line with "# ", and keep
@@ -518,8 +521,9 @@ Make these changes:
   spelling of product names (SQL, CI/CD, Docker).
 - MISSING (OTHER) keywords are optional: add one only where the candidate's real work clearly supports it. A real
   person's resume never matches every line of a posting, so leaving several of them out is expected and fine.
-- titleLine: the job title from the posting ("${job.title || "see the job description"}"). The summary names that
-  title and the posting's most important skills in its first sentence.
+- titleLine: keep the current one unless it is missing. It is the candidate's own headline (their real level and
+  discipline plus a focus area of this job), never a copy of the posting's job title ("${job.title || "see the job description"}").
+  The summary's first sentence ties the candidate to this role and names the posting's most important skills.
 ${quantified < 0.6 ? "- At least 60% of the experience bullets show a concrete number (percent, time saved, scale, users, requests, cost).\n" : ""}- Cover letter: mention ${letterMissing.length ? letterMissing.slice(0, 6).join(", ") : "the posting's top skills"}${/\d/.test(coverLetter) ? "" : " and one concrete result with a number"}; keep its length, greeting and sign-off.
 - Plain text, no markdown, no long dashes. Do not stuff keywords into lists of buzzwords: each bullet stays one clear
   sentence about real work.
@@ -551,7 +555,9 @@ ALSO USE IF THEY FIT: ${before.softMissing.join(", ") || "none"}`;
       .filter((g) => g.items.length);
     const revised: ResumeContent = {
       ...resume,
-      titleLine: typeof out.titleLine === "string" && out.titleLine.trim() ? cleanResume(out.titleLine) : resume.titleLine,
+      // The candidate's own headline stays unless the revision has a real one (not just the posting's title).
+      titleLine:
+        typeof out.titleLine === "string" && out.titleLine.trim() && !sameTitle(out.titleLine, job.title) ? cleanResume(out.titleLine) : resume.titleLine,
       summary: typeof out.summary === "string" && out.summary.trim() ? cleanResume(out.summary) : resume.summary,
       skills: skills.length ? skills : resume.skills,
       // Matched by position; titles, companies and dates stay the profile's.
@@ -582,6 +588,12 @@ ALSO USE IF THEY FIT: ${before.softMissing.join(", ") || "none"}`;
     console.error("ATS revision failed; keeping the first draft", e);
   }
   return result;
+}
+
+/** Whether a headline is just the posting's job title again (letter case, punctuation and "(Remote)" aside). */
+function sameTitle(headline: string | undefined, jobTitle: string) {
+  const key = (s: string) => s.replace(/\s*[([].*$/, "").toLowerCase().replace(/[^a-z0-9+#]+/g, "");
+  return !!headline && !!jobTitle && key(headline) === key(jobTitle);
 }
 
 /** At most this share of the posting's keywords stays in the resume: a 100% match reads as written by AI. */
@@ -685,13 +697,12 @@ export async function generateApplication(
   if (!parsed.summary && !parsed.experience.length) throw new HttpError(502, "The AI response could not be read. Please try again.");
   // A title from the job board or the posting's job data beats the AI's reading of the text (it once turned "Research
   // Engineer - RL Infrastructure" into "AI/ML Systems Engineer"). A tab title doesn't: the AI's ROLE wins, and the tab
-  // title is only a fallback. Either way the company name and filler are taken out. The result names the application
-  // and goes under the candidate's name.
+  // title is only a fallback. Either way the company name and filler are taken out. The result names the application.
   const role = tidyJobTitle((job.titleTrusted && scrapedTitle) || parsed.role || scrapedTitle, parsed.company || job.company || "");
-  if (role) {
-    parsed.role = role;
-    parsed.headline = role.replace(/\s*[([].*$/, "").trim() || role; // drop "(Remote)", "[Hybrid]"
-  }
+  if (role) parsed.role = role;
+  // The headline under the name is the AI's own (see HEADLINE in the output rules); one that just repeats the posting's
+  // title gives way to the profile's professional title.
+  if (sameTitle(parsed.headline, role)) parsed.headline = "";
 
   // Match parsed experience to profile roles (by company name, then by order); titles, companies and dates come from
   // the profile exactly.
