@@ -11,7 +11,7 @@ function escapeRegex(s: string) {
 
 /**
  * Has this profile applied to the same company within the cooldown window?
- * Counts every bid on the profile (any bidder) except ones the bidder deleted.
+ * Counts every generated or submitted bid on the profile (any bidder), except ones the bidder deleted.
  */
 export async function findCooldownHit(profileId: Types.ObjectId, company: string, days: number): Promise<CooldownHit | null> {
   const key = companyKey(company);
@@ -20,6 +20,9 @@ export async function findCooldownHit(profileId: Types.ObjectId, company: string
   const last = await Application.findOne({
     profile: profileId,
     deletedByUser: false,
+    // "Not generated" rows were never applications: a failed attempt, or the placeholder the generate request saves
+    // for itself before scraping (company guessed from the URL), which used to block that same request.
+    status: { $ne: "not_generated" },
     createdAt: { $gte: since },
     // companyKey for new records; exact-name fallback for records created before the key existed
     $or: [{ companyKey: key }, { companyKey: "", company: new RegExp(`^\\s*${escapeRegex(company.trim())}\\s*$`, "i") }],
