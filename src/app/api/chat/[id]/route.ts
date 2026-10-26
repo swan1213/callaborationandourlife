@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { handler, HttpError, quietHandler, requireUser } from "@/lib/auth";
-import { ChatConversation, ChatMessage } from "@/lib/models/Chat";
+import { ChatConversation, ChatMessage, ChatRead } from "@/lib/models/Chat";
 import { User } from "@/lib/models/User";
 import { conversationFor, markRead, MAX_MESSAGE, messageOut, type ChatMsg as Msg } from "@/lib/chat";
 import { oid } from "@/lib/query";
+import type { Types } from "mongoose";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -51,6 +52,15 @@ export const GET = quietHandler(async (req: Request, { params }: Ctx) => {
     messages = found.slice(0, PAGE).reverse();
   }
   await markRead(c._id, me._id);
+  // How far everyone else has read (read receipts: "Seen" in direct chats, avatars under messages in the team chat).
+  const readRows = await ChatRead.find({ conversation: c._id, user: { $ne: me._id } }).select("user at").lean<{ user: Types.ObjectId; at: Date }[]>();
+  const readers = new Map(
+    (await User.find({ _id: { $in: readRows.map((r) => r.user) } }).select("name avatar").lean<{ _id: Types.ObjectId; name: string; avatar?: string }[]>()).map((u) => [String(u._id), u])
+  );
+  const reads = readRows.flatMap((r) => {
+    const u = readers.get(String(r.user));
+    return u ? [{ user: String(r.user), name: u.name, avatar: u.avatar ?? "", at: r.at }] : [];
+  });
 
   const otherId = c.members.find((m) => !m.equals(me._id));
   const other = otherId ? await User.findById(otherId).select("name avatar role").lean() : null;
@@ -65,6 +75,7 @@ export const GET = quietHandler(async (req: Request, { params }: Ctx) => {
       messages: messages.map(messageOut),
       hasMore,
       now,
+      reads,
     },
     { headers: { "Cache-Control": "no-store" } }
   );

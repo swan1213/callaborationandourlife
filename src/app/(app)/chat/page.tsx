@@ -13,7 +13,15 @@ import { api, fmtDate, fmtDateTime, Spinner } from "@/components/ui";
 
 type Reaction = { emoji: string; users: { _id: string; name: string }[] };
 type Msg = { _id: string; sender: string; senderName: string; body: string; reactions: Reaction[]; createdAt: string };
-type Thread = { conversation: { _id: string; kind: "team" | "direct"; name: string; other: ChatPerson | null }; messages: Msg[]; hasMore: boolean; now: string };
+/** How far someone else has read the conversation. */
+type Reader = { user: string; name: string; avatar: string; at: string };
+type Thread = {
+  conversation: { _id: string; kind: "team" | "direct"; name: string; other: ChatPerson | null };
+  messages: Msg[];
+  hasMore: boolean;
+  now: string;
+  reads: Reader[];
+};
 
 const POLL_MS = 3000;
 /** One-click reactions at the top of the reaction picker. */
@@ -256,6 +264,8 @@ function ThreadView({ id, me, onRead, onBack }: { id: string; me: string; onRead
           const fromOthers = t.messages.some((m) => m.sender !== me && m.createdAt > last);
           if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 80) stick.current = true;
           merge(t.messages, "end");
+          // Others read on: move their "seen" markers (only re-render when something changed).
+          setThread((x) => (x && JSON.stringify(x.reads) !== JSON.stringify(t.reads) ? { ...x, reads: t.reads } : x));
           if (fromOthers) onRead();
         })
         .catch(() => {});
@@ -340,6 +350,17 @@ function ThreadView({ id, me, onRead, onBack }: { id: string; me: string; onRead
 
   const c = thread?.conversation;
   const messages = useMemo(() => thread?.messages ?? [], [thread]);
+  // Read receipts: each other person is shown once, under the newest message they have read (as far as loaded).
+  const seenAt = useMemo(() => {
+    const at = new Map<string, Reader[]>();
+    for (const r of thread?.reads ?? []) {
+      const t = new Date(r.at).getTime();
+      let last: Msg | undefined;
+      for (const m of messages) if (new Date(m.createdAt).getTime() <= t) last = m;
+      if (last && last.sender !== r.user) at.set(last._id, [...(at.get(last._id) ?? []), r]);
+    }
+    return at;
+  }, [thread?.reads, messages]);
   return (
     <>
       <header className="flex h-14 shrink-0 items-center gap-2.5 border-b border-slate-200 px-3">
@@ -464,6 +485,7 @@ function ThreadView({ id, me, onRead, onBack }: { id: string; me: string; onRead
                       )}
                     </div>
                   </div>
+                  {seenAt.get(m._id) && <SeenBy readers={seenAt.get(m._id)!} direct={c?.kind === "direct"} />}
                 </Fragment>
               );
             })}
@@ -527,4 +549,22 @@ function linkify(text: string, mine: boolean): ReactNode[] {
 function shortWhen(iso: string) {
   const d = fmtDate(iso);
   return d === fmtDate(new Date()) ? fmtDateTime(iso).slice(11) : d;
+}
+
+/** Under the newest message someone has read: "Seen 14:19" in a direct chat, small avatars in the team chat. */
+function SeenBy({ readers, direct }: { readers: Reader[]; direct: boolean }) {
+  const MAX = 6;
+  const names = readers.map((r) => r.name).join(", ");
+  const latest = readers.reduce((a, r) => (r.at > a ? r.at : a), "");
+  return (
+    <div className="mt-1 flex items-center justify-end gap-1 pr-1 text-[11px] text-slate-400" title={`Seen by ${names}`}>
+      {direct && <span>Seen {fmtDateTime(latest).slice(11)}</span>}
+      <span className="flex -space-x-1">
+        {readers.slice(0, MAX).map((r) => (
+          <Avatar key={r.user} avatar={r.avatar} name={r.name} size={16} className="ring-2 ring-[var(--surface)]" />
+        ))}
+      </span>
+      {readers.length > MAX && <span>+{readers.length - MAX}</span>}
+    </div>
+  );
 }
