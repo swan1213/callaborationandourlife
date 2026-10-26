@@ -128,66 +128,69 @@ export default function GeneratePage() {
         <Alert kind="info">No profiles are assigned to you yet. Ask an administrator to assign one.</Alert>
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* The list scrolls on its own (and stays beside the form on wide screens) instead of stretching the page. */}
-          <div className="min-w-0 space-y-3 lg:sticky lg:top-20 lg:col-span-1 lg:self-start">
-            <StepTitle n={1} title="Choose a profile" />
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
-              <input
-                className="input pl-9"
-                type="search"
-                placeholder="Search profiles"
-                value={profileQ}
-                onChange={(e) => setProfileQ(e.target.value)}
-                aria-label="Search profiles"
-              />
-            </div>
-            {/* p-1 / -m-1 keep the selected card's focus ring from being clipped by the scroll box. */}
-            <div className="-m-1 max-h-96 space-y-2 overflow-y-auto overscroll-contain p-1 lg:max-h-[calc(100dvh-12.5rem)]">
-              {!shownProfiles.length && <p className="px-1 py-4 text-center text-sm text-slate-500">No profile matches &ldquo;{profileQ.trim()}&rdquo;.</p>}
-              {shownProfiles.map((p) => {
-                const full = p.monthlyQuota > 0 && p.usedThisMonth >= p.monthlyQuota;
-                const active = p.id === profileId;
-                const ratio = p.monthlyQuota > 0 ? Math.min(1, p.usedThisMonth / p.monthlyQuota) : 0;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => pickProfile(p.id)}
-                    className={`card w-full cursor-pointer p-4 text-left transition-[border-color,box-shadow] ${
-                      active ? "border-indigo-500 ring-[3px] ring-indigo-500/15" : "hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-slate-900">{p.label}</div>
-                        <div className="truncate text-[13px] text-slate-500">
-                          {p.fullName}
-                          {p.title && ` · ${p.title}`}
+          {/* On wide screens the column is exactly as tall as the form + Recent beside it (absolute inside the stretched
+              grid cell, so it adds no height of its own) and the list scrolls inside; on phones the list is capped. */}
+          <div className="relative min-w-0 lg:col-span-1 lg:min-h-[26rem]">
+            <div className="flex flex-col gap-3 lg:absolute lg:inset-0">
+              <StepTitle n={1} title="Choose a profile" />
+              <div className="relative">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  className="input pl-9"
+                  type="search"
+                  placeholder="Search profiles"
+                  value={profileQ}
+                  onChange={(e) => setProfileQ(e.target.value)}
+                  aria-label="Search profiles"
+                />
+              </div>
+              {/* p-1 / -m-1 keep the selected card's focus ring from being clipped by the scroll box. */}
+              <div className="-m-1 max-h-96 min-h-0 space-y-2 overflow-y-auto overscroll-contain p-1 lg:max-h-none lg:flex-1">
+                {!shownProfiles.length && <p className="px-1 py-4 text-center text-sm text-slate-500">No profile matches &ldquo;{profileQ.trim()}&rdquo;.</p>}
+                {shownProfiles.map((p) => {
+                  const full = p.monthlyQuota > 0 && p.usedThisMonth >= p.monthlyQuota;
+                  const active = p.id === profileId;
+                  const ratio = p.monthlyQuota > 0 ? Math.min(1, p.usedThisMonth / p.monthlyQuota) : 0;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => pickProfile(p.id)}
+                      className={`card w-full cursor-pointer p-4 text-left transition-[border-color,box-shadow] ${
+                        active ? "border-indigo-500 ring-[3px] ring-indigo-500/15" : "hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium text-slate-900">{p.label}</div>
+                          <div className="truncate text-[13px] text-slate-500">
+                            {p.fullName}
+                            {p.title && ` · ${p.title}`}
+                          </div>
                         </div>
+                        <span
+                          aria-hidden
+                          className={`mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border ${active ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-300"}`}
+                        >
+                          {active && <Check className="size-3" strokeWidth={3} />}
+                        </span>
                       </div>
-                      <span
-                        aria-hidden
-                        className={`mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border ${active ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-300"}`}
-                      >
-                        {active && <Check className="size-3" strokeWidth={3} />}
-                      </span>
-                    </div>
-                    {p.monthlyQuota > 0 && (
-                      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                        <div
-                          className={`h-full rounded-full ${ratio >= 1 ? "bg-rose-500" : ratio >= 0.8 ? "bg-amber-500" : "bg-indigo-600"}`}
-                          style={{ width: `${ratio * 100}%` }}
-                        />
+                      {p.monthlyQuota > 0 && (
+                        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className={`h-full rounded-full ${ratio >= 1 ? "bg-rose-500" : ratio >= 0.8 ? "bg-amber-500" : "bg-indigo-600"}`}
+                            style={{ width: `${ratio * 100}%` }}
+                          />
+                        </div>
+                      )}
+                      <div className={`mt-2 text-xs tabular-nums ${full ? "text-rose-600" : "text-slate-500"}`}>
+                        {p.monthlyQuota > 0 ? `${p.usedThisMonth} / ${p.monthlyQuota} used this month` : `${p.usedThisMonth} generated this month`}
                       </div>
-                    )}
-                    <div className={`mt-2 text-xs tabular-nums ${full ? "text-rose-600" : "text-slate-500"}`}>
-                      {p.monthlyQuota > 0 ? `${p.usedThisMonth} / ${p.monthlyQuota} used this month` : `${p.usedThisMonth} generated this month`}
-                    </div>
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
