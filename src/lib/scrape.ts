@@ -9,6 +9,8 @@ export type ScrapedJob = {
   text: string;
   /** True when the company came from the posting's JobPosting structured data (reliable employer name). */
   companyTrusted?: boolean;
+  /** True when the title came from a job board API or JobPosting data, not the browser tab title (which often has extra words). */
+  titleTrusted?: boolean;
 };
 
 const MAX_TEXT = 20000;
@@ -132,6 +134,7 @@ async function scrapeWorkable(url: URL): Promise<ScrapedJob | null> {
     location: [job.remote ? "Remote" : "", location].filter(Boolean).join(", "),
     text: text.slice(0, MAX_TEXT),
     companyTrusted: !!company,
+    titleTrusted: !!str(job.title),
   };
 }
 
@@ -189,6 +192,7 @@ async function scrapeGreenhouse(url: URL, board: string, id: string): Promise<Sc
     location,
     text: clean(`${title}${location ? `\n${location}` : ""}\n\n${text}`).slice(0, MAX_TEXT),
     companyTrusted: !!company,
+    titleTrusted: !!title,
   };
 }
 
@@ -270,6 +274,7 @@ export async function scrapeJob(rawUrl: string): Promise<ScrapedJob> {
         location: locationOf(p),
         text: text.slice(0, MAX_TEXT),
         companyTrusted: !!str(p.hiringOrganization),
+        titleTrusted: !!str(p.title),
       };
     }
   }
@@ -313,5 +318,27 @@ export async function pastedJob(text: string, url: string): Promise<Omit<Scraped
     new Promise<null>((resolve) => (timer = setTimeout(() => resolve(null), PASTED_PAGE_MS))),
   ]);
   clearTimeout(timer);
-  return page ? { ...job, title: page.title || "", company: page.company || "", location: page.location || "" } : job;
+  return page ? { ...job, title: page.title || "", company: page.company || "", location: page.location || "", titleTrusted: page.titleTrusted } : job;
+}
+
+/** Title pieces that are never the job title ("Job available - immediate employment - …", "… | Careers"). */
+const TITLE_FILLER =
+  /^(jobs?|careers?|career opportunit(y|ies)|(careers?|jobs?) (at|with) .+|job (available|opening|opportunity|posting|details?|description|offer)|immediate (employment|start|hire|hiring)|(now )?hiring( now)?|urgently hiring|apply( now| today)?|vacanc(y|ies)|open (position|role)s?|employment|full[- ]time|part[- ]time|permanent|contract|remote|hybrid|on[- ]?site|new|indeed(\.com)?|linkedin|glassdoor|ziprecruiter|monster|workopolis|job ?bank|simplyhired|jobright( ai)?|talent\.com)$/i;
+
+/**
+ * A job title as a person would write it: drops pieces that are only the company name, filler ("Job available",
+ * "Immediate employment", "Careers", a job site's name) or a repeat, split at " - ", " | ", " · ", " – ".
+ * "Research Engineer - RL Infrastructure" stays as it is.
+ */
+export function tidyJobTitle(raw: string, company = "") {
+  const co = company.trim().toLowerCase();
+  const parts = raw.replace(/\s+/g, " ").trim().split(/\s+[-–—|·•]\s+/).map((p) => p.trim()).filter(Boolean);
+  const seen = new Set<string>();
+  const kept = parts.filter((p) => {
+    const key = p.toLowerCase();
+    if (seen.has(key) || TITLE_FILLER.test(p) || (co && (key === co || key === `at ${co}`))) return false;
+    seen.add(key);
+    return true;
+  });
+  return kept.join(" - ") || raw.trim();
 }

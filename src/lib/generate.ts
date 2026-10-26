@@ -4,6 +4,7 @@ import type { ProfileFields } from "./models/Profile";
 import { DEFAULT_RESUME_PROMPT } from "./resumePrompt";
 import { RESUME_HEADLINE } from "./headline";
 import { jobKeywords, mentionsKeyword, resumeText, scoreCoverLetter, scoreResume } from "./matchScore";
+import { tidyJobTitle } from "./scrape";
 
 export type ResumeExperience = {
   company: string;
@@ -635,7 +636,7 @@ export function trimKeywordCoverage(resume: ResumeContent, jd: string, jobTitle:
 export async function generateApplication(
   openai: Pick<ResolvedOpenAI, "client" | "model">,
   profile: ProfileFields,
-  job: { text: string; url?: string; title?: string; company?: string; location?: string },
+  job: { text: string; url?: string; title?: string; titleTrusted?: boolean; company?: string; location?: string },
   extraInstructions = "",
   promptTemplate = "",
   atsTarget = 0,
@@ -645,9 +646,11 @@ export async function generateApplication(
   const template = promptTemplate.trim() || DEFAULT_RESUME_PROMPT;
   // The title, company and location the scraper read from the page go on top of the description: many postings
   // (Ashby, Greenhouse…) show them only in the page header, so the text alone leaves the AI guessing the role.
+  // A browser tab title ("Job available - immediate employment - Developer - Acme - Acme") is only a hint.
   const scrapedTitle = (job.title || "").trim();
   const header = [
-    scrapedTitle && `JOB TITLE: ${scrapedTitle}`,
+    scrapedTitle &&
+      (job.titleTrusted ? `JOB TITLE: ${scrapedTitle}` : `PAGE TITLE (from the browser tab; may include the company or other words): ${scrapedTitle}`),
     job.company?.trim() && `COMPANY: ${job.company.trim()}`,
     job.location?.trim() && `LOCATION: ${job.location.trim()}`,
   ].filter(Boolean);
@@ -680,11 +683,14 @@ export async function generateApplication(
     if (!broken(second) || (second.summary && !parsed.summary)) parsed = second;
   }
   if (!parsed.summary && !parsed.experience.length) throw new HttpError(502, "The AI response could not be read. Please try again.");
-  // A title read from the posting page beats the AI's reading of the text (it once turned "Research Engineer - RL
-  // Infrastructure" into "AI/ML Systems Engineer"): it names the application and goes under the candidate's name.
-  if (scrapedTitle) {
-    parsed.role = scrapedTitle;
-    parsed.headline = scrapedTitle.replace(/\s*[([].*$/, "").trim() || scrapedTitle; // drop "(Remote)", "[Hybrid]"
+  // A title from the job board or the posting's job data beats the AI's reading of the text (it once turned "Research
+  // Engineer - RL Infrastructure" into "AI/ML Systems Engineer"). A tab title doesn't: the AI's ROLE wins, and the tab
+  // title is only a fallback. Either way the company name and filler are taken out. The result names the application
+  // and goes under the candidate's name.
+  const role = tidyJobTitle((job.titleTrusted && scrapedTitle) || parsed.role || scrapedTitle, parsed.company || job.company || "");
+  if (role) {
+    parsed.role = role;
+    parsed.headline = role.replace(/\s*[([].*$/, "").trim() || role; // drop "(Remote)", "[Hybrid]"
   }
 
   // Match parsed experience to profile roles (by company name, then by order); titles, companies and dates come from
