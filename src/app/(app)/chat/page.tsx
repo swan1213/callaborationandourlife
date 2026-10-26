@@ -485,7 +485,7 @@ function ThreadView({ id, me, onRead, onBack }: { id: string; me: string; onRead
                       )}
                     </div>
                   </div>
-                  {seenAt.get(m._id) && <SeenBy readers={seenAt.get(m._id)!} direct={c?.kind === "direct"} />}
+                  {seenAt.get(m._id) && <SeenBy readers={seenAt.get(m._id)!} />}
                 </Fragment>
               );
             })}
@@ -551,14 +551,12 @@ function shortWhen(iso: string) {
   return d === fmtDate(new Date()) ? fmtDateTime(iso).slice(11) : d;
 }
 
-/** Under the newest message someone has read: "Seen 14:19" in a direct chat, small avatars in the team chat. */
-function SeenBy({ readers, direct }: { readers: Reader[]; direct: boolean }) {
+/** Small avatars under the newest message each person has read (direct and team chats alike); hover for who and when. */
+function SeenBy({ readers }: { readers: Reader[] }) {
   const MAX = 6;
-  const names = readers.map((r) => r.name).join(", ");
-  const latest = readers.reduce((a, r) => (r.at > a ? r.at : a), "");
+  const title = "Seen by " + readers.map((r) => `${r.name} (${fmtDateTime(r.at).slice(11)})`).join(", ");
   return (
-    <div className="mt-1 flex items-center justify-end gap-1 pr-1 text-[11px] text-slate-400" title={`Seen by ${names}`}>
-      {direct && <span>Seen {fmtDateTime(latest).slice(11)}</span>}
+    <div className="mt-1 flex items-center justify-end gap-1 pr-1 text-[11px] text-slate-400" title={title}>
       <span className="flex -space-x-1">
         {readers.slice(0, MAX).map((r) => (
           <Avatar key={r.user} avatar={r.avatar} name={r.name} size={16} className="ring-2 ring-[var(--surface)]" />

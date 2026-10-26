@@ -29,8 +29,9 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     date: "2026-10-26",
     title: "See who read your messages",
     changes: [
-      { text: "Direct chats show \"Seen\" with the time under your message once the other person has read it." },
-      { text: "In the team chat, each person's small avatar sits under the last message they've read; hover it to see the names." },
+      {
+        text: "In direct chats and the team chat, each person's small avatar sits under the last message they've read; hover it to see who and when.",
+      },
     ],
   },
   {
