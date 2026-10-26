@@ -295,3 +295,23 @@ export async function scrapeJob(rawUrl: string): Promise<ScrapedJob> {
   }
   return { url: url.toString(), title: clean(title), company: clean(site), location: "", text: text.slice(0, MAX_TEXT) };
 }
+
+/** Longest wait for the posting page when the job description was pasted (generation must finish within 60 s). */
+const PASTED_PAGE_MS = 8000;
+
+/**
+ * A pasted job description. When the posting's URL is known too, the page's title, company and location are read
+ * from it (at most PASTED_PAGE_MS; a blocked or slow page is ignored), because pasted text often starts below the
+ * title. The pasted text stays the description.
+ */
+export async function pastedJob(text: string, url: string): Promise<Omit<ScrapedJob, "url">> {
+  const job = { text: text.slice(0, MAX_TEXT), title: "", company: "", location: "" };
+  if (!url) return job;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const page = await Promise.race([
+    scrapeJob(url).catch(() => null),
+    new Promise<null>((resolve) => (timer = setTimeout(() => resolve(null), PASTED_PAGE_MS))),
+  ]);
+  clearTimeout(timer);
+  return page ? { ...job, title: page.title || "", company: page.company || "", location: page.location || "" } : job;
+}

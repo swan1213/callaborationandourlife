@@ -630,7 +630,7 @@ export function trimKeywordCoverage(resume: ResumeContent, jd: string, jobTitle:
 /**
  * Resume + cover letter for a job. The prompt (Settings, else DEFAULT_RESUME_PROMPT) is followed as written: the app
  * adds only the reply layout it parses, and takes job titles, companies, dates and education from the profile.
- * `atsTarget` (Settings → ATS target score; 0 = off): see atsRevise.
+ * `atsTarget` (Settings → ATS target score; 0 = off): see atsRevise. `started`: when the request began.
  */
 export async function generateApplication(
   openai: Pick<ResolvedOpenAI, "client" | "model">,
@@ -638,18 +638,28 @@ export async function generateApplication(
   job: { text: string; url?: string; title?: string; company?: string; location?: string },
   extraInstructions = "",
   promptTemplate = "",
-  atsTarget = 0
+  atsTarget = 0,
+  /** When the request began (scraping included), so the 60 s budget counts the time before generation too. */
+  started = Date.now()
 ): Promise<GenerationResult> {
-  const started = Date.now();
   const template = promptTemplate.trim() || DEFAULT_RESUME_PROMPT;
-  const filled = fillPrompt(template, profile, job);
+  // The title, company and location the scraper read from the page go on top of the description: many postings
+  // (Ashby, Greenhouse…) show them only in the page header, so the text alone leaves the AI guessing the role.
+  const scrapedTitle = (job.title || "").trim();
+  const header = [
+    scrapedTitle && `JOB TITLE: ${scrapedTitle}`,
+    job.company?.trim() && `COMPANY: ${job.company.trim()}`,
+    job.location?.trim() && `LOCATION: ${job.location.trim()}`,
+  ].filter(Boolean);
+  const aiJob = header.length ? { ...job, text: `${header.join("\n")}\n\n${job.text}` } : job;
+  const filled = fillPrompt(template, profile, aiJob);
   const system =
     withOutputContract(filled, profile.fullName) +
     (extraInstructions ? `\n\nAdditional instructions from the administrator:\n${extraInstructions}` : "");
   // The job goes inside the prompt when it has the job placeholders, else in this message.
   const user = JOB_PLACEHOLDERS.some((ph) => template.includes(ph))
     ? "Write the resume and cover letter for the job description given above, following every instruction and the required output layout."
-    : `JOB DESCRIPTION LINK: ${job.url || "(not provided; pasted by the user)"}\n\nJOB DESCRIPTION CONTENT:\n${job.text}`;
+    : `JOB DESCRIPTION LINK: ${job.url || "(not provided; pasted by the user)"}\n\nJOB DESCRIPTION CONTENT:\n${aiJob.text}`;
 
   let completion = await callModel(openai, system, user);
   let parsed = parseResumeGPT(completion.choices[0]?.message?.content ?? "");
@@ -670,6 +680,12 @@ export async function generateApplication(
     if (!broken(second) || (second.summary && !parsed.summary)) parsed = second;
   }
   if (!parsed.summary && !parsed.experience.length) throw new HttpError(502, "The AI response could not be read. Please try again.");
+  // A title read from the posting page beats the AI's reading of the text (it once turned "Research Engineer - RL
+  // Infrastructure" into "AI/ML Systems Engineer"): it names the application and goes under the candidate's name.
+  if (scrapedTitle) {
+    parsed.role = scrapedTitle;
+    parsed.headline = scrapedTitle.replace(/\s*[([].*$/, "").trim() || scrapedTitle; // drop "(Remote)", "[Hybrid]"
+  }
 
   // Match parsed experience to profile roles (by company name, then by order); titles, companies and dates come from
   // the profile exactly.
@@ -732,7 +748,7 @@ export async function generateApplication(
 
   // The reply had no cover letter: write it with a dedicated request.
   if (!parsed.coverLetter.trim()) {
-    const letter = await writeCoverLetter(openai, profile, resume, job.text, extraInstructions, filled);
+    const letter = await writeCoverLetter(openai, profile, resume, aiJob.text, extraInstructions, filled);
     if (letter) {
       parsed.coverLetter = letter.coverLetter;
       if (!parsed.company) parsed.company = letter.company;

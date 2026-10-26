@@ -3,7 +3,7 @@ import { canManageProfile, handler, HttpError, requireUser } from "@/lib/auth";
 import { Profile } from "@/lib/models/Profile";
 import { Application } from "@/lib/models/Application";
 import { getSettings } from "@/lib/models/Settings";
-import { scrapeJob, type ScrapedJob } from "@/lib/scrape";
+import { pastedJob, scrapeJob, type ScrapedJob } from "@/lib/scrape";
 import { generateApplication } from "@/lib/generate";
 import { estimateCost, recordKeyResult, resolveOpenAI } from "@/lib/openaiKeys";
 import { monthStart, oid } from "@/lib/query";
@@ -21,6 +21,7 @@ export const maxDuration = 60;
  * - applicationId: generate an existing "not_generated" application (usually with a pasted jobText).
  */
 export const POST = handler(async (req: Request) => {
+  const requestStarted = Date.now();
   const user = await requireUser();
   if (user.role === "caller") throw new HttpError(403, "Callers cannot generate applications");
   const body = await req.json();
@@ -112,7 +113,7 @@ export const POST = handler(async (req: Request) => {
   const bidder = { name: user.name, email: user.email };
   try {
     // Job description: pasted text, or scraped from the URL.
-    job = manualText ? { text: manualText.slice(0, 20000), title: "", company: "", location: "" } : await scrapeJob(jobUrl);
+    job = manualText ? await pastedJob(manualText, jobUrl) : await scrapeJob(jobUrl);
     if (cooldownDays > 0 && job.companyTrusted && job.company) {
       // Known before generation (structured data) → block without spending tokens.
       const hit = await findCooldownHit(profile._id, job.company, cooldownDays);
@@ -120,7 +121,7 @@ export const POST = handler(async (req: Request) => {
     }
     phase = "generate";
     openai = await resolveOpenAI(profile);
-    result = await generateApplication(openai, profile.toObject(), { ...job, url: jobUrl }, settings.promptInstructions, settings.resumePromptTemplate, settings.atsTargetScore ?? 85);
+    result = await generateApplication(openai, profile.toObject(), { ...job, url: jobUrl }, settings.promptInstructions, settings.resumePromptTemplate, settings.atsTargetScore ?? 85, requestStarted);
   } catch (e) {
     if (openai && e instanceof HttpError && e.status === 502) await recordKeyResult(openai.apiKeyId, e.message);
     const cooldown = e instanceof HttpError && e.status === 409;

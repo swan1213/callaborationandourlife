@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { handler, HttpError, requireUser } from "@/lib/auth";
 import { Profile } from "@/lib/models/Profile";
 import { getSettings } from "@/lib/models/Settings";
-import { scrapeJob } from "@/lib/scrape";
+import { pastedJob, scrapeJob } from "@/lib/scrape";
 import { generateApplication } from "@/lib/generate";
 import { DEFAULT_RESUME_PROMPT } from "@/lib/resumePrompt";
 import { estimateCost, recordKeyResult, resolveOpenAI } from "@/lib/openaiKeys";
@@ -19,6 +19,7 @@ export const maxDuration = 60;
  * no fee is charged and the profile's quota and same-company cooldown don't apply.
  */
 export const POST = handler(async (req: Request) => {
+  const requestStarted = Date.now();
   await requireUser("admin");
   const b = await req.json();
   const profile = await Profile.findById(oid(b.profileId, "profile"));
@@ -33,12 +34,12 @@ export const POST = handler(async (req: Request) => {
   const promptTemplate = typeof b.promptTemplate === "string" ? b.promptTemplate : settings.resumePromptTemplate;
   const promptInstructions = typeof b.promptInstructions === "string" ? b.promptInstructions : settings.promptInstructions;
 
-  const job = jobText ? { text: jobText.slice(0, 20000), title: "", company: "", location: "" } : await scrapeJob(jobUrl);
+  const job = jobText ? await pastedJob(jobText, jobUrl) : await scrapeJob(jobUrl);
   const openai = await resolveOpenAI(profile);
   const started = Date.now();
   let result;
   try {
-    result = await generateApplication(openai, profile.toObject(), { ...job, url: jobUrl }, promptInstructions, promptTemplate, settings.atsTargetScore ?? 85);
+    result = await generateApplication(openai, profile.toObject(), { ...job, url: jobUrl }, promptInstructions, promptTemplate, settings.atsTargetScore ?? 85, requestStarted);
   } catch (e) {
     if (e instanceof HttpError && e.status === 502) await recordKeyResult(openai.apiKeyId, e.message);
     throw e;
