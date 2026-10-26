@@ -68,7 +68,9 @@ export const POST = handler(async (req: Request) => {
   // Pasting a description (manual) and retrying an existing not-generated one are always allowed.
   if (jobUrl && !manualText && !target && user.role === "bidder") {
     const q = await manualQueue(user);
-    if (q.blocked) throw new HttpError(429, manualLimitMessage(q.pending, q.limit));
+    // `reason` tells the page this is the paste limit, not the profile's monthly quota (both are 429).
+    if (q.blocked)
+      return NextResponse.json({ error: manualLimitMessage(q.pending, q.limit), reason: "manual_limit", pending: q.pending, limit: q.limit }, { status: 429 });
   }
 
   // URL-based attempts (single URL without pasted text, multi-URL import) are always tracked in the history:

@@ -106,6 +106,16 @@ export default function ImportPage() {
   // Job postings waiting for a manual paste: at the bidder's limit, generating from URLs is paused.
   const manual = useAsync(() => api<{ manualQueue: { pending: number; limit: number; blocked: boolean } | null }>("/api/me").then((r) => r.manualQueue), []);
   const q = manual.data;
+  // Kept current: a limit an admin raises, or postings handled in another tab, show without reloading the page.
+  useEffect(() => {
+    const refresh = () => document.visibilityState === "visible" && manual.reload();
+    const t = setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const nearLimit = !!q && q.limit > 0 && !q.blocked && q.pending >= Math.ceil(q.limit * 0.8);
 
   useEffect(() => {
@@ -148,7 +158,7 @@ export default function ImportPage() {
     return true;
   }
 
-  const processRow = useCallback(async (row: Row): Promise<"ok" | "quota"> => {
+  const processRow = useCallback(async (row: Row): Promise<"ok" | "quota" | "manual_limit"> => {
     setRow(row.n, { state: "running", message: undefined });
     try {
       const r = await api<{ id: string; status: string; company: string; jobTitle: string; message?: string }>("/api/applications/generate", {
@@ -170,8 +180,10 @@ export default function ImportPage() {
       if (err.status === 409 && err.data.duplicateId) setRow(row.n, { state: "skipped", appId: String(err.data.duplicateId), message: "Already generated with this profile" });
       else if (err.status === 409) setRow(row.n, { state: "blocked", message: err.message });
       else if (err.status === 429) {
-        setRow(row.n, { state: "stopped", message: err.message });
-        return "quota";
+        // Not run: nothing was saved for this link, so it doesn't add to either count.
+        const manualLimit = err.data?.reason === "manual_limit";
+        setRow(row.n, { state: "stopped", message: manualLimit ? "Not run: too many postings are waiting for a pasted description" : err.message });
+        return manualLimit ? "manual_limit" : "quota";
       } else if (!err.status || err.status >= 500)
         // Timed out / connection lost: the server already saved the attempt as "not generated" in the history.
         setRow(row.n, { state: "not_generated", message: "Timed out. Saved in the history as not-generated; retry or paste the description." });
@@ -187,23 +199,30 @@ export default function ImportPage() {
     setRunning(true);
     const queue = rowsRef.current.filter((r) => onlyStates.includes(r.state)).map((r) => r.n);
     queue.forEach((n) => setRow(n, { state: "queued", message: undefined }));
-    let quotaHit = false;
+    // Which limit stopped the run: the profile's monthly quota (generated resumes only) or the bidder's paste limit
+    // (postings saved as not generated). They are different counts, so they get different messages.
+    let stoppedBy = "" as "" | "quota" | "manual_limit"; // set inside the workers, so TypeScript mustn't narrow it to ""
     const worker = async () => {
-      while (queue.length && !cancelRef.current && !quotaHit) {
+      while (queue.length && !cancelRef.current && !stoppedBy) {
         while (pausedRef.current && !cancelRef.current) await new Promise((r) => setTimeout(r, 300));
         if (cancelRef.current) break;
         const n = queue.shift()!;
         const row = rowsRef.current.find((r) => r.n === n)!;
-        if ((await processRow(row)) === "quota") quotaHit = true;
+        const result = await processRow(row);
+        if (result !== "ok") stoppedBy = result;
       }
     };
     await Promise.all(Array.from({ length: CONCURRENCY }, worker));
-    // Anything left over: quota reached or cancelled.
-    for (const n of queue) setRow(n, { state: "stopped", message: quotaHit ? "Monthly quota reached for this profile" : "Cancelled" });
+    // Anything left over: a limit was reached, or cancelled.
+    const leftMessage =
+      stoppedBy === "quota" ? "Monthly quota reached for this profile" : stoppedBy === "manual_limit" ? "Not run: too many postings are waiting for a pasted description" : "Cancelled";
+    for (const n of queue) setRow(n, { state: "stopped", message: leftMessage });
     setRunning(false);
     const done = rowsRef.current.filter((r) => r.state === "done").length;
     const notGenerated = rowsRef.current.filter((r) => r.state === "not_generated").length;
-    if (quotaHit) toast.warning("Monthly quota reached", "The remaining job URLs were not run.");
+    if (stoppedBy === "quota") toast.warning("Monthly quota reached", "The remaining job URLs were not run.");
+    if (stoppedBy === "manual_limit")
+      toast.warning("Paused: too many postings waiting for a pasted description", "Paste the descriptions of some not-generated postings (or ask an admin to raise your limit), then run the rest again.");
     if (done)
       toast({
         title: `${done} application${done === 1 ? "" : "s"} generated`,
