@@ -25,6 +25,40 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-26",
+    date: "2026-10-26",
+    title: "Better titles, more natural resumes and fixes",
+    changes: [
+      {
+        text: "Job titles are read from the posting page and cleaned up (no more \"Job available - immediate employment - …\" or the company name in the title).",
+        roles: APPS,
+      },
+      {
+        text: "The line under the candidate's name is now a headline written for them (their level and field, aimed at the job), not a copy of the job title.",
+        roles: APPS,
+      },
+      {
+        text: "Resumes no longer match every keyword of a posting, which looked written by AI: a few nice-to-have keywords are left out, required ones never.",
+        roles: APPS,
+      },
+      { text: "Interview practice (Chat tab) answers are shorter and sound more like someone talking.", roles: APPS },
+      {
+        text: "Fixed: the 30-day same-company rule could block a job by itself (\"already applied to …\" with nothing in the history). Failed attempts no longer count.",
+        roles: APPS,
+      },
+      {
+        text: "Generate remembers the profile you picked last, lists it first, and the profile list now scrolls beside the form at the same height.",
+        roles: APPS,
+      },
+      {
+        text: "Import CSV: the waiting-for-paste limit updates without reloading, and reaching it no longer says \"Monthly quota reached\".",
+        roles: APPS,
+      },
+      { text: "The Unpaid Counter desktop app can connect (API Access key).", roles: ["admin"] },
+    ],
+    steps: [{ text: "Reload any open TailorBid tabs so new resumes use these changes." }],
+  },
+  {
     id: "2026-10-25-9",
     date: "2026-10-25",
     title: "Clear copied on Job links",
