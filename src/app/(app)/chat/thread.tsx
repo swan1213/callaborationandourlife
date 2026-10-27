@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ClipboardList,
   Copy,
+  Forward,
   Hash,
   ImagePlus,
   Pencil,
@@ -30,11 +31,11 @@ import { useConfirm, useToast } from "@/components/Alerts";
 import { ActionMenu, type ActionItem } from "@/components/ActionMenu";
 import { useRole } from "@/components/AppShell";
 import { Avatar } from "@/components/Avatar";
-import { playChatSound, type ChatPerson } from "@/components/Chat";
+import { playChatSound, useChat, type ChatPerson } from "@/components/Chat";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import Lightbox, { type Slide } from "@/components/Lightbox";
 import { PresenceAvatar, PresenceLabel, usePresence } from "@/components/Presence";
-import { api, fmtDate, fmtDateTime, Spinner } from "@/components/ui";
+import { api, fmtDate, fmtDateTime, Modal, Spinner } from "@/components/ui";
 import { isEmojiOnly } from "@/lib/emoji";
 import { fmtMinutes, isEmptyReport, OUTCOME_LABEL, type WorkReport } from "@/lib/workReport";
 
@@ -50,6 +51,8 @@ export type Msg = {
   mentions: { _id: string; name: string }[];
   /** A member's automatic daily report (Daily reports chat). */
   report: WorkReport | null;
+  /** A forwarded copy: who wrote the original. */
+  forwarded: { senderName: string; at: string } | null;
   reactions: Reaction[];
   edited: boolean;
   deleted: boolean;
@@ -65,7 +68,8 @@ type Thread = {
   hasMore: boolean;
   now: string;
   reads: Reader[];
-  typing: string[];
+  /** People typing here right now. */
+  typing: { _id: string; name: string }[];
   links: LinkInfo;
 };
 type Pending = { url: string; publicId: string; width: number; height: number };
@@ -107,6 +111,7 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
   const [pinIdx, setPinIdx] = useState(0);
   const [searching, setSearching] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [forwarding, setForwarding] = useState<Msg | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -243,7 +248,16 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   };
 
+  /** Tells the others I stopped typing (box cleared, message sent, conversation left). */
+  const stopTyping = useCallback(() => {
+    if (!lastPing.current) return;
+    lastPing.current = 0;
+    fetch(`/api/chat/${id}/typing`, { method: "DELETE", keepalive: true }).catch(() => {});
+  }, [id]);
+  useEffect(() => stopTyping, [stopTyping]);
+
   function resetComposer() {
+    stopTyping();
     setDraft("");
     setReplyTo(null);
     setEditing(null);
@@ -422,7 +436,8 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
     setMention(m ? { start: caret - m[1].length - 1, query: m[1] } : null);
     setMentionIdx(0);
     // "is typing" for the others, at most every few seconds.
-    if (value.trim() && !editing && Date.now() - lastPing.current > TYPING_PING_MS) {
+    if (!value.trim()) stopTyping();
+    else if (!editing && Date.now() - lastPing.current > TYPING_PING_MS) {
       lastPing.current = Date.now();
       fetch(`/api/chat/${id}/typing`, { method: "POST" }).catch(() => {});
     }
@@ -467,7 +482,8 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
     const mine = m.sender === me;
     const items: ActionItem[] = [{ label: "Reply", icon: Reply, onSelect: () => startReply(m) }];
     if (m.body) items.push({ label: "Copy text", icon: Copy, onSelect: () => navigator.clipboard.writeText(m.body).then(() => toast.success("Copied")).catch(() => {}) });
-    if (mine && m.body && Date.now() - new Date(m.createdAt).getTime() < EDIT_WINDOW_MS) items.push({ label: "Edit", icon: Pencil, onSelect: () => startEdit(m) });
+    if (isAdmin) items.push({ label: "Forward", icon: Forward, onSelect: () => setForwarding(m) });
+    if (mine && m.body && !m.forwarded && Date.now() - new Date(m.createdAt).getTime() < EDIT_WINDOW_MS) items.push({ label: "Edit", icon: Pencil, onSelect: () => startEdit(m) });
     if (isAdmin && c?.kind === "team") {
       const pinned = pins.some((p) => p._id === m._id);
       items.push({ label: pinned ? "Unpin" : "Pin to top", icon: pinned ? PinOff : Pin, onSelect: () => pin(m, !pinned) });
@@ -514,7 +530,7 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
               <span className="block truncate text-sm font-semibold text-slate-900">
                 {c.other.name} <span className="font-normal text-slate-400">· {ROLE_LABEL[c.other.role] ?? c.other.role}</span>
               </span>
-              <PresenceLabel userId={c.other._id} />
+              {typing.length ? <span className="block text-xs font-medium text-indigo-600">typing…</span> : <PresenceLabel userId={c.other._id} />}
             </span>
           </>
         ) : (
@@ -610,6 +626,11 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
                         <span className="mb-0.5 text-[11px] text-slate-500">
                           {!mine && <span className="font-medium text-slate-700">{m.senderName} </span>}
                           {fmtDateTime(m.createdAt).slice(11)}
+                        </span>
+                      )}
+                      {m.forwarded && !m.deleted && (
+                        <span className="mb-0.5 inline-flex items-center gap-1 text-[11px] text-slate-500 italic" title={`Originally sent ${fmtDateTime(m.forwarded.at)}`}>
+                          <Forward className="size-3" /> Forwarded from {m.forwarded.senderName}
                         </span>
                       )}
                       {/* Actions sit beside the bubble: shown on hover, always on touch screens. */}
@@ -712,20 +733,10 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
                 </Fragment>
               );
             })}
+            {typing.length > 0 && <TypingBubble typing={typing} />}
           </>
         )}
       </div>
-
-      {typing.length > 0 && (
-        <div className="shrink-0 px-4 pb-1 text-[11.5px] text-slate-500" aria-live="polite">
-          <span className="inline-flex gap-0.5 align-middle">
-            <span className="size-1 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.2s]" />
-            <span className="size-1 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.1s]" />
-            <span className="size-1 animate-bounce rounded-full bg-slate-400" />
-          </span>{" "}
-          {typing.length === 1 ? `${typing[0]} is typing…` : typing.length === 2 ? `${typing[0]} and ${typing[1]} are typing…` : "Several people are typing…"}
-        </div>
-      )}
 
       <form
         className="relative shrink-0 border-t border-slate-200 p-2.5 sm:p-3"
@@ -866,7 +877,7 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
               }
               // Up arrow in an empty box edits your last message (within 15 minutes).
               if (e.key === "ArrowUp" && !draft && !editing) {
-                const mineLast = [...messages].reverse().find((m) => m.sender === me && !m.deleted && m.body);
+                const mineLast = [...messages].reverse().find((m) => m.sender === me && !m.deleted && m.body && !m.forwarded);
                 if (mineLast && Date.now() - new Date(mineLast.createdAt).getTime() < EDIT_WINDOW_MS) {
                   e.preventDefault();
                   startEdit(mineLast);
@@ -889,6 +900,7 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
         </div>
       </form>
 
+      {forwarding && <ForwardDialog convId={id} message={forwarding} me={me} onClose={() => setForwarding(null)} />}
       {viewer && <Lightbox slides={viewer.slides} start={viewer.start} onClose={() => setViewer(null)} />}
     </>
   );
@@ -1000,6 +1012,107 @@ function SearchPanel({ convId, onPick }: { convId: string; onPick: (messageId: s
   );
 }
 
+const MAX_FORWARD = 10;
+
+/** Forward a message: pick chats (your conversations, or anyone you haven't messaged yet) and send it there. */
+function ForwardDialog({ convId, message, me, onClose }: { convId: string; message: Msg; me: string; onClose: () => void }) {
+  const toast = useToast();
+  const chat = useChat();
+  const { people } = usePresence();
+  const [q, setQ] = useState("");
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+
+  // Conversations first (Team chat, Daily reports, recent direct chats), then people without a direct chat yet.
+  const withChat = new Set(chat.conversations.map((c) => c.other?._id).filter(Boolean));
+  const options = [
+    ...chat.conversations.map((c) => ({ key: `c:${c._id}`, name: c.name, kind: c.kind, person: c.other, hint: c.kind === "direct" ? (ROLE_LABEL[c.other?.role ?? ""] ?? "") : "" })),
+    ...people
+      .filter((p) => p._id !== me && !withChat.has(p._id))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((p) => ({ key: `u:${p._id}`, name: p.name, kind: "direct" as const, person: { _id: p._id, name: p.name, avatar: p.avatar, role: p.role }, hint: ROLE_LABEL[p.role] ?? p.role })),
+  ];
+  const needle = q.trim().toLowerCase();
+  const shown = needle ? options.filter((o) => o.name.toLowerCase().includes(needle)) : options;
+
+  function toggle(key: string) {
+    setPicked((s) => {
+      const n = new Set(s);
+      if (n.has(key)) n.delete(key);
+      else if (n.size < MAX_FORWARD) n.add(key);
+      else toast.warning(`Forward to at most ${MAX_FORWARD} chats at once`);
+      return n;
+    });
+  }
+
+  async function send() {
+    if (!picked.size) return;
+    setBusy(true);
+    try {
+      const keys = [...picked];
+      const r = await api<{ sent: string[] }>(`/api/chat/${convId}/forward`, {
+        method: "POST",
+        json: { messageId: message._id, conversations: keys.filter((k) => k.startsWith("c:")).map((k) => k.slice(2)), users: keys.filter((k) => k.startsWith("u:")).map((k) => k.slice(2)) },
+      });
+      toast.success(r.sent.length === 1 ? "Message forwarded" : `Message forwarded to ${r.sent.length} chats`);
+      chat.refresh();
+      onClose();
+    } catch (e) {
+      toast.error("Couldn't forward the message", (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const what = message.report ? "📋 Daily report" : message.body.replace(/\s+/g, " ").trim() || (message.images.length > 1 ? `📷 ${message.images.length} photos` : "📷 Photo");
+  return (
+    <Modal open onClose={onClose} title="Forward message">
+      <div className="space-y-3">
+        <div className="rounded-lg border-l-2 border-indigo-500 bg-slate-50 px-2.5 py-1.5 text-xs">
+          <span className="font-semibold text-slate-900">{message.forwarded?.senderName ?? message.senderName}</span>
+          <span className="line-clamp-2 text-slate-600">{what}</span>
+        </div>
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+          <input className="input pl-9" placeholder="Search chats and people" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+        </div>
+        <ul className="-mx-1 max-h-72 overflow-y-auto px-1" aria-label="Forward to">
+          {shown.map((o) => (
+            <li key={o.key}>
+              <label className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 ${picked.has(o.key) ? "bg-indigo-50" : "hover:bg-slate-50"}`}>
+                <input type="checkbox" className="size-4 rounded" checked={picked.has(o.key)} onChange={() => toggle(o.key)} />
+                {o.kind === "team" ? (
+                  <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
+                    <Hash className="size-3.5" />
+                  </span>
+                ) : o.kind === "reports" ? (
+                  <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                    <ClipboardList className="size-3.5" />
+                  </span>
+                ) : (
+                  <PresenceAvatar userId={o.person?._id ?? ""} avatar={o.person?.avatar} name={o.name} size={28} />
+                )}
+                <span className="min-w-0 flex-1 truncate text-[13px] text-slate-900">{o.name}</span>
+                {o.hint && <span className="shrink-0 text-[11px] text-slate-400">{o.hint}</span>}
+              </label>
+            </li>
+          ))}
+          {!shown.length && <li className="px-2 py-3 text-xs text-slate-400">No chat or person matches.</li>}
+        </ul>
+        <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center sm:justify-end">
+          <span className="text-xs text-slate-500 sm:mr-auto">{picked.size ? `${picked.size} selected` : "Pick one or more chats"}</span>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="button" className="btn btn-primary" onClick={send} disabled={busy || !picked.size}>
+            {busy ? <Spinner /> : <Forward />} Forward
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 const when = (iso: string) => new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
@@ -1070,6 +1183,30 @@ function ReportCard({ r, highlight }: { r: WorkReport; highlight: boolean }) {
       )}
       <div className="border-t border-slate-200 px-3 py-1.5 text-[11px] text-slate-400">
         Automatic · {when(r.from)} – {when(r.to)}
+      </div>
+    </div>
+  );
+}
+
+/** "Is typing": the typers' avatars and a bubble with bouncing dots at the bottom of the conversation. */
+function TypingBubble({ typing }: { typing: { _id: string; name: string }[] }) {
+  const { byId } = usePresence();
+  const label =
+    typing.length === 1 ? `${typing[0].name} is typing…` : typing.length === 2 ? `${typing[0].name} and ${typing[1].name} are typing…` : "Several people are typing…";
+  return (
+    <div className="mt-3 flex items-end gap-2" role="status" aria-live="polite">
+      <span className="flex w-7 shrink-0 -space-x-2">
+        {typing.slice(0, 2).map((t) => (
+          <Avatar key={t._id} avatar={byId.get(t._id)?.avatar} name={t.name} size={typing.length > 1 ? 20 : 28} />
+        ))}
+      </span>
+      <div className="flex flex-col items-start">
+        <span className="mb-0.5 text-[11px] text-slate-500">{label}</span>
+        <span className="inline-flex items-center gap-1 rounded-2xl bg-slate-100 px-3.5 py-2.5" aria-hidden>
+          <span className="size-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]" />
+          <span className="size-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.15s]" />
+          <span className="size-1.5 animate-bounce rounded-full bg-slate-400" />
+        </span>
       </div>
     </div>
   );

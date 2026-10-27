@@ -26,6 +26,7 @@ async function syncPreview(c: { _id: unknown; lastMessageAt: Date | null }, m: C
 export const PATCH = handler(async (req: Request, { params }: Ctx) => {
   const { me, c, b, m } = await load(req, params);
   if (!m.sender.equals(me._id)) throw new HttpError(403, "You can only edit your own messages");
+  if (m.forwarded?.senderName) throw new HttpError(400, "Forwarded messages can't be edited");
   if (Date.now() - new Date(m.createdAt).getTime() > EDIT_WINDOW_MS) throw new HttpError(400, "Messages can only be edited for 15 minutes after sending");
   const body = typeof b?.body === "string" ? b.body.trim() : "";
   if (!body && !m.images?.length) throw new HttpError(400, "A message can't be empty: delete it instead");
@@ -48,10 +49,13 @@ export const DELETE = handler(async (req: Request, { params }: Ctx) => {
     { $set: { deletedAt: new Date(), body: "", images: [], reactions: [], mentions: [] } },
     { returnDocument: "after" }
   ).lean<ChatMsg>();
+  // Forwarded copies share the images: only remove the ones no other message still shows.
+  const ids = (m.images ?? []).map((i) => i.publicId).filter(Boolean);
+  const shared = ids.length ? await ChatMessage.distinct("images.publicId", { "images.publicId": { $in: ids }, deletedAt: null }) : [];
   await Promise.all([
     syncPreview(c, updated!),
     ChatConversation.updateOne({ _id: c._id }, { $pull: { pinned: { message: m._id } } }),
-    ...(m.images ?? []).filter((i) => i.publicId).map((i) => destroyAsset(i.publicId)),
+    ...ids.filter((id) => !shared.includes(id)).map((id) => destroyAsset(id)),
   ]);
   return NextResponse.json({ message: messageOut(updated!) });
 });

@@ -281,7 +281,12 @@ export const HELP_PAGES: HelpPage[] = [
       { title: "Send", detail: "Type and press Enter (Shift+Enter starts a new line). The smiley next to the box adds emoji; a message of just one to three emoji shows large. Links you paste, such as job links, can be clicked." },
       { title: "Mention someone", detail: "In Team chat type @ and pick a name (or @admins for every admin). They get a notification in the bell, and a desktop alert if they turned those on." },
       { title: "Screenshots and images", detail: "Paste a screenshot with Ctrl+V, drag images in, or click the image button left of the message box (up to 6 per message, 10 MB each). Click an image to see it full size." },
-      { title: "Reply, edit, delete", detail: "Hover a message: the arrow replies with a quote, the smiley reacts, and ⋯ has Copy text, Edit (your messages, for 15 minutes; or press ↑ in an empty box), Delete and, for admins in Team chat, Pin to top. Admins can delete any Team chat message." },
+      { title: "Reply, edit, delete", detail: "Hover a message: the arrow replies with a quote, the smiley reacts, and ⋯ has Copy text, Forward (admins), Edit (your messages, for 15 minutes; or press ↑ in an empty box), Delete and, for admins in Team chat, Pin to top. Admins can delete any Team chat message." },
+      {
+        title: "Forward a message (admins)",
+        detail:
+          "Admins can forward a message from any chat: hover it and pick ⋯ → Forward, then tick one or more chats or people (up to 10; search by name) and click Forward. The text, images and report card are copied with \"Forwarded from\" and the original author; someone you haven't messaged yet gets a new direct chat. Forwarded messages can't be edited.",
+      },
       { title: "Pinned messages", detail: "Admins can pin up to 5 messages to the top of Team chat (rules, prices, announcements). Click the pinned bar to jump to the message; the arrow shows the next one." },
       { title: "Search", detail: "The magnifier in the conversation header searches its messages, names and links; click a result to jump to it." },
       { title: "Job links", detail: "A job link in a message shows a card (the role and company when someone already generated from it) with a Generate button that opens Generate with the link filled in." },
@@ -295,7 +300,8 @@ export const HELP_PAGES: HelpPage[] = [
       "New messages appear within a few seconds while the chat is open; elsewhere in the app a pop-up tells you who wrote.",
       "Direct messages also send a desktop alert when you turned Desktop alerts on and aren't reading that chat.",
       "The bell next to New message turns the new-message sound on or off.",
-      "You see when someone is typing, and small avatars show how far each person has read.",
+      "When someone is writing to you, a bubble with moving dots and their picture appears at the bottom of the chat, \"typing…\" shows under their name and in the chat list. It goes away when they send or clear the message.",
+      "Small avatars under the messages show how far each person has read.",
       "Scroll up and click Load earlier messages to see older history.",
     ],
   },

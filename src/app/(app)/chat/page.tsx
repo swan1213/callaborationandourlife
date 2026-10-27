@@ -136,6 +136,11 @@ function ConversationList({ conversations, active, loaded, onOpen }: { conversat
                   {c.lastMessage && <span className="shrink-0 text-[11px] text-slate-400">{shortWhen(c.lastMessage.at)}</span>}
                 </span>
                 <span className="flex items-center justify-between gap-2">
+                  {c.typing?.length ? (
+                    <span className="truncate text-xs font-medium text-indigo-600">
+                      {c.kind === "direct" ? "typing…" : c.typing.length === 1 ? `${c.typing[0]} is typing…` : `${c.typing.length} people are typing…`}
+                    </span>
+                  ) : (
                   <span className={`truncate text-xs ${c.unread ? "text-slate-700" : "text-slate-500"}`}>
                     {c.lastMessage
                       ? `${c.lastMessage.mine ? "You: " : c.kind !== "direct" && c.lastMessage.senderName !== "TailorBid" ? `${c.lastMessage.senderName}: ` : ""}${c.lastMessage.body}`
@@ -145,6 +150,7 @@ function ConversationList({ conversations, active, loaded, onOpen }: { conversat
                           ? "Member reports arrive every evening"
                           : "No messages yet"}
                   </span>
+                  )}
                   {c.unread > 0 && (
                     <span className="inline-flex h-4.5 min-w-4.5 shrink-0 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-[10px] font-semibold text-white tabular-nums">
                       {c.unread > 99 ? "99+" : c.unread}

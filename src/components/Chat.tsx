@@ -16,9 +16,13 @@ export type ChatConversation = {
   other: ChatPerson | null;
   lastMessage: { body: string; senderName: string; mine: boolean; at: string } | null;
   unread: number;
+  /** Names of the people typing there right now. */
+  typing: string[];
 };
 
 const POLL_MS = 15_000;
+/** On the chat page the list refreshes faster, so "typing…" and new messages show up quickly. */
+const CHAT_PAGE_POLL_MS = 4_000;
 
 /** New-message sound: on unless turned off on the chat page (per browser). */
 const SOUND_KEY = "chat-sound";
@@ -108,14 +112,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refresh();
-    const id = setInterval(() => document.visibilityState === "visible" && refresh(), POLL_MS);
+    const id = setInterval(() => document.visibilityState === "visible" && refresh(), onChatPage ? CHAT_PAGE_POLL_MS : POLL_MS);
     const onVisible = () => document.visibilityState === "visible" && refresh();
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [refresh]);
+  }, [refresh, onChatPage]);
 
   const value = useMemo(() => ({ ...state, refresh }), [state, refresh]);
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

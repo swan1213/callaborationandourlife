@@ -46,6 +46,7 @@ export function messageOut(m: ChatMsg) {
     mentions: deleted ? [] : (m.mentions ?? []).map((x) => ({ _id: String(x.user), name: x.name })),
     reactions: [...groups].map(([emoji, users]) => ({ emoji, users })),
     report: deleted ? null : (m.report ?? null),
+    forwarded: !deleted && m.forwarded?.senderName ? { senderName: m.forwarded.senderName, at: m.forwarded.at } : null,
     edited: !!m.editedAt,
     deleted,
     createdAt: m.createdAt,

@@ -13,3 +13,10 @@ export const POST = quietHandler(async (_req: Request, { params }: Ctx) => {
   await ChatTyping.updateOne({ conversation: c._id, user: me._id }, { $set: { name: me.name, at: new Date() } }, { upsert: true });
   return NextResponse.json({ ok: true });
 });
+
+/** DELETE — stopped typing (cleared the box or left the conversation): the others stop seeing it right away. */
+export const DELETE = quietHandler(async (_req: Request, { params }: Ctx) => {
+  const me = await requireUser();
+  await ChatTyping.deleteOne({ conversation: oid((await params).id), user: me._id });
+  return NextResponse.json({ ok: true });
+});

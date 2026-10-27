@@ -79,6 +79,8 @@ const ChatMessageSchema = new Schema(
       ],
       default: [],
     },
+    /** Set on a forwarded copy: who wrote the original (the first author when it was forwarded again) and when. */
+    forwarded: { type: { _id: false, senderName: String, at: Date }, default: null },
     /** An automatic daily report (lib/workReport.ts WorkReport), shown as a card; `body` holds the same as text. */
     report: { type: Schema.Types.Mixed, default: null },
   },
@@ -101,6 +103,7 @@ export type ChatMessageFields = {
   replyTo: ChatReply | null;
   mentions: { user: Types.ObjectId; name: string }[];
   report?: WorkReport | null;
+  forwarded?: { senderName: string; at: Date } | null;
   editedAt: Date | null;
   deletedAt: Date | null;
   reactions: ChatReaction[];

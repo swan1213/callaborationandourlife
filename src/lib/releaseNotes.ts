@@ -25,6 +25,21 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-26-5",
+    date: "2026-10-26",
+    title: "Typing bubble and forwarding in chat",
+    changes: [
+      {
+        text: "See when someone is writing to you: a bubble with moving dots and their picture appears at the bottom of the chat, and \"typing…\" shows under their name and in the chat list.",
+      },
+      {
+        text: "Forward any chat message (text, images or a report) to Team chat or to one or more people: hover it and pick ⋯ → Forward. The copy shows who wrote the original.",
+        roles: ["admin"],
+      },
+    ],
+    steps: [{ text: "Hover a message, open ⋯ and choose Forward, tick the chats, then click Forward.", roles: ["admin"] }],
+  },
+  {
     id: "2026-10-26-4",
     date: "2026-10-26",
     title: "Daily reports in Chat",

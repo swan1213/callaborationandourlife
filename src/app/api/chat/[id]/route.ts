@@ -75,7 +75,7 @@ export const GET = quietHandler(async (req: Request, { params }: Ctx) => {
   // How far everyone else has read (read receipts: avatars under the last message each person has read).
   const [readRows, typingRows, links] = await Promise.all([
     ChatRead.find({ conversation: c._id, user: { $ne: me._id } }).select("user at").lean<{ user: Types.ObjectId; at: Date }[]>(),
-    ChatTyping.find({ conversation: c._id, user: { $ne: me._id }, at: { $gte: new Date(Date.now() - TYPING_MS) } }).select("name").lean<{ name: string }[]>(),
+    ChatTyping.find({ conversation: c._id, user: { $ne: me._id }, at: { $gte: new Date(Date.now() - TYPING_MS) } }).select("user name").lean<{ user: Types.ObjectId; name: string }[]>(),
     linkInfo(messages),
   ]);
   const readers = new Map(
@@ -101,7 +101,7 @@ export const GET = quietHandler(async (req: Request, { params }: Ctx) => {
       hasMore,
       now,
       reads,
-      typing: [...new Set(typingRows.map((t) => t.name))],
+      typing: typingRows.map((t) => ({ _id: String(t.user), name: t.name })),
       links,
     },
     { headers: { "Cache-Control": "no-store" } }
