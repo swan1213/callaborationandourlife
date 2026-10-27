@@ -123,9 +123,22 @@ function cleanResume(s: string, keepBold = false) {
   return humanize(fixTech(t.replace(/[ \t]{2,}/g, " ").trim()));
 }
 
-/** Cover letter: plain text, no dashes of any kind, no bold. */
+/** Stiff letter phrasing the model still slips into → how people write it. */
+const LETTER_FIXES: [RegExp, string][] = [
+  [/\bI am confident that\s+/gi, "I think "],
+  [/\bI would welcome the opportunity to\b/gi, "I'd be glad to"],
+  [/\bI would welcome the chance to\b/gi, "I'd be glad to"],
+  [/\bI am eager to\b/gi, "I'd like to"],
+  [/\bI am writing to apply for\b/gi, "I'm applying for"],
+  [/\bI am\b/g, "I'm"],
+  [/\bI would\b/g, "I'd"],
+  [/\bI have (been|worked|built|led|spent|shipped|seen|learned|found|owned|helped|done|had)\b/g, "I've $1"],
+  [/\b(do|did|does|was|is|were|have|has) not\b/gi, "$1n't"],
+];
+
+/** Cover letter: plain text, no dashes of any kind, no bold, contractions. */
 function cleanLetter(s: string) {
-  return humanize(fixTech(
+  return LETTER_FIXES.reduce((t, [re, rep]) => t.replace(re, (m: string, g1?: unknown) => keepCase(m, rep.replace("$1", typeof g1 === "string" ? g1 : ""))), humanize(fixTech(
     s
       .replace(ICONS, "")
       .replace(/\*\*|__/g, "")
@@ -135,7 +148,7 @@ function cleanLetter(s: string) {
       .replace(/[ \t]{2,}/g, " ")
       .replace(/\n{3,}/g, "\n\n")
       .trim()
-  ));
+  )));
 }
 
 /**
@@ -196,17 +209,43 @@ export function candidateProfileText(p: ProfileFields) {
 }
 
 /** Cover letter rules for prompts that have none (the default prompt is resume-only). */
-const letterRules = (name: string) => `- 250 to 350 words, one page, first person, plain text: no bullets, bold, links or dashes of any kind.
+const letterRules = (name: string) => `- 220 to 320 words, one page, first person, plain text: no bullets, bold, links or dashes of any kind.
 - Start with "Dear Hiring Manager," with nothing above it.
-- Opening: the exact company name, the exact position and one concrete reason this engineering work interests the
-  candidate. Do not open with "I am writing to express", "I am thrilled to apply" or "As a passionate".
-- Then the two or three most important engineering responsibilities in the job description, tied to the candidate's  strongest work, with real implementation detail.
-- Then one specific example of how the candidate approaches engineering problems (root cause, architecture,
-  reliability, testing or ownership).
-- Close by tying that experience to the company's priorities, with a short, natural request to talk.
+- First paragraph: the exact company name and position, and the concrete thing about this work that interests the
+  candidate, said plainly.
+- Middle: one or two short stories from the candidate's real work that match what this job needs most: what was going
+  on, what they actually did, and how it turned out.
+- Optionally a short paragraph on how they like to work (owning a problem end to end, finding the root cause, testing
+  properly), shown through an example rather than adjectives.
+- Close with one or two plain sentences and a natural request to talk.
 - Complement the resume rather than repeating its bullets. Never invent employers, metrics, credentials or claims about
   the company.
 - End with "Sincerely," on its own line, then "${name}".`;
+
+/**
+ * How every cover letter should sound, whatever the prompt says about its content (custom prompts included): letters
+ * otherwise come out as stiff, resume-like text.
+ */
+const LETTER_VOICE = `COVER LETTER VOICE (applies whatever the instructions say about the letter's content)
+- Write it the way a thoughtful engineer writes a short email to a hiring manager they'd like to work with: first
+  person, plain everyday words, contractions (I'm, I've, I'd, didn't), sentences of mixed length. Warm and direct, not
+  stiff or salesy. It should read like one particular person wrote it, not a template.
+- Open with something real and specific about this job or company and why it caught the candidate's interest. Never
+  open with "I am writing to", "I am excited/thrilled to apply", "As a passionate" or "With X years of experience".
+- Tell one or two concrete stories from the candidate's actual work (what was going on, what they did, how it turned
+  out, with a number said naturally) instead of listing skills. Never copy resume wording; retell the facts in fresh,
+  plain words.
+- Mention the posting's important skills where they come up naturally in those stories: at most two or three tech names
+  in one sentence, never a keyword list.
+- Modest and specific: show ability through what was done. No "I am confident", "I believe I would be a great fit",
+  "my extensive experience", "proven track record", "a unique blend".
+- Close simply ("I'd be glad to talk about how I could help with the platform work." / "Happy to talk more whenever
+  suits you."). No final paragraph restating everything.
+- Never use: leverage, utilize, spearhead, synergy, delve, robust, seamless, cutting-edge, innovative, dynamic,
+  fast-paced, results-driven, passionate, thrilled, excited to, eager to, landscape, realm, testament, elevate, foster,
+  harness, empower, pivotal, transformative, holistic, navigate, streamline, "align with", "aligns perfectly", "a wide
+  range of", various, "key role", deeply, invaluable, "skill set", "meaningful impact", "contribute to your team's
+  success", "I would welcome the opportunity", "pain points", "best practices", "cross-functional", instrumental.`;
 
 /**
  * The reply layout the parser depends on. Appended when a prompt doesn't ask for the COMPANY/ROLE lines and the cover
@@ -245,13 +284,18 @@ COVER LETTER
 
 Then a blank line, then the cover letter written as the instructions above describe, in plain text, starting at the
 greeting (nothing above it). If the instructions say nothing about a cover letter, write one following these rules:
-${letterRules(name)}`;
+${letterRules(name)}
 
-/** Adds the output layout unless the prompt already asks for the header lines and the cover letter section. */
+${LETTER_VOICE}`;
+
+/**
+ * Adds the output layout unless the prompt already asks for the header lines and the cover letter section; the letter
+ * voice is added either way.
+ */
 export function withOutputContract(prompt: string, name: string) {
   const asksHeader = /^\s*COMPANY\s*:/m.test(prompt) && /^\s*ROLE\s*:/m.test(prompt);
   const asksLetter = /^\s*COVER LETTER\s*$/m.test(prompt);
-  return asksHeader && asksLetter ? prompt : prompt + outputContract(name);
+  return asksHeader && asksLetter ? `${prompt}\n\n${LETTER_VOICE}` : prompt + outputContract(name);
 }
 
 /** Placeholders with the job in them; a prompt using them gets the job inside the prompt instead of the user message. */
@@ -413,7 +457,9 @@ async function writeCoverLetter(
 instructions; the tailored resume is given in the user message). If the prompt has no cover letter instructions,
 follow these rules:
 ${letterRules(profile.fullName)}
-Use only facts from the candidate's resume and profile. Plain text, no headers above the greeting.${extra}
+Use only facts from the candidate's resume and profile. Plain text, no headers above the greeting.
+
+${LETTER_VOICE}${extra}
 
 PROMPT:
 ${prompt}`;
@@ -524,7 +570,9 @@ Make these changes:
 - titleLine: keep the current one unless it is missing. It is the candidate's own headline (their real level and
   discipline plus a focus area of this job), never a copy of the posting's job title ("${job.title || "see the job description"}").
   The summary's first sentence ties the candidate to this role and names the posting's most important skills.
-${quantified < 0.6 ? "- At least 60% of the experience bullets show a concrete number (percent, time saved, scale, users, requests, cost).\n" : ""}- Cover letter: mention ${letterMissing.length ? letterMissing.slice(0, 6).join(", ") : "the posting's top skills"}${/\d/.test(coverLetter) ? "" : " and one concrete result with a number"}; keep its length, greeting and sign-off.
+${quantified < 0.6 ? "- At least 60% of the experience bullets show a concrete number (percent, time saved, scale, users, requests, cost).\n" : ""}- Cover letter: mention ${letterMissing.length ? letterMissing.slice(0, 6).join(", ") : "the posting's top skills"}${/\d/.test(coverLetter) ? "" : " and one concrete result with a number"}; keep its length, greeting, sign-off and its plain, conversational
+  voice (contractions, everyday words): work each keyword into a real sentence about the candidate's work, never a list,
+  and don't make it more formal.
 - Plain text, no markdown, no long dashes. Do not stuff keywords into lists of buzzwords: each bullet stays one clear
   sentence about real work.
 

@@ -25,6 +25,17 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-27-3",
+    date: "2026-10-27",
+    title: "More natural cover letters",
+    changes: [
+      {
+        text: "New cover letters read like a short note from a real person: plain words, contractions, one or two concrete stories instead of resume lines, and a simple close. Letters already generated stay as they are.",
+        roles: APPS,
+      },
+    ],
+  },
+  {
     id: "2026-10-27-2",
     date: "2026-10-27",
     title: "More natural interview practice answers",
