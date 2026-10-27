@@ -25,6 +25,17 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-27-2",
+    date: "2026-10-27",
+    title: "More natural interview practice answers",
+    changes: [
+      {
+        text: "Interview practice (Chat tab on an application): answers now sound like someone talking. They retell one story in plain words instead of repeating the resume, keep tech terms light and skip the formal wrap-up line.",
+        roles: APPS,
+      },
+    ],
+  },
+  {
     id: "2026-10-27",
     date: "2026-10-27",
     title: "Clearer same-company and duplicate checks",
