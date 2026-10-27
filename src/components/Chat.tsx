@@ -11,7 +11,7 @@ import { useToast } from "./Alerts";
 export type ChatPerson = { _id: string; name: string; avatar: string; role: string };
 export type ChatConversation = {
   _id: string;
-  kind: "team" | "direct";
+  kind: "team" | "direct" | "reports";
   name: string;
   other: ChatPerson | null;
   lastMessage: { body: string; senderName: string; mine: boolean; at: string } | null;
@@ -93,7 +93,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             if (c.unread > (seen.current.get(c._id) ?? 0) && c.lastMessage && !c.lastMessage.mine && c._id !== open) {
               ding = true;
               if (!quiet.current)
-                toast.info(c.kind === "team" ? `${c.lastMessage.senderName} in Team chat` : `Message from ${c.lastMessage.senderName}`, c.lastMessage.body.slice(0, 140));
+                toast.info(
+                  c.kind === "direct" ? `Message from ${c.lastMessage.senderName}` : `${c.lastMessage.senderName} in ${c.name}`,
+                  c.lastMessage.body.slice(0, 140)
+                );
             }
           if (ding) playChatSound();
         }

@@ -5,7 +5,7 @@ import { defineModel } from "./define";
 const NotificationLogSchema = new Schema(
   {
     key: { type: String, required: true, unique: true },
-    kind: { type: String, enum: ["milestone-profile", "milestone-user", "daily-report", "interview-digest", "interview-reminder", "interview-report"], required: true },
+    kind: { type: String, enum: ["milestone-profile", "milestone-user", "daily-report", "interview-digest", "interview-reminder", "interview-report", "member-report"], required: true },
     recipients: { type: [String], default: [] },
     meta: { type: Schema.Types.Mixed },
   },

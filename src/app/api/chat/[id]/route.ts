@@ -93,7 +93,7 @@ export const GET = quietHandler(async (req: Request, { params }: Ctx) => {
       conversation: {
         _id: String(c._id),
         kind: c.kind,
-        name: c.kind === "team" ? "Team chat" : (other?.name ?? "Deleted account"),
+        name: c.kind === "team" ? "Team chat" : c.kind === "reports" ? "Daily reports" : (other?.name ?? "Deleted account"),
         other: c.kind === "direct" ? { _id: String(otherId ?? ""), name: other?.name ?? "Deleted account", avatar: other?.avatar ?? "", role: other?.role ?? "" } : null,
         pinned: (c.pinned ?? []).map((p) => ({ _id: String(p.message), body: p.body, senderName: p.senderName, pinnedBy: p.pinnedBy, pinnedAt: p.pinnedAt })),
       },

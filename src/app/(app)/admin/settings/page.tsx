@@ -20,6 +20,7 @@ type Settings = {
   resumePromptTemplate: string;
   reportTimezone: string;
   dailyReportEnabled: boolean;
+  memberReportsEnabled: boolean;
   notificationsEnabled: boolean;
   milestones: number[];
   milestonePeriod: "daily" | "lifetime";
@@ -72,6 +73,7 @@ export default function SettingsPage() {
           companyCooldownDays: String(s.companyCooldownDays ?? 30),
           interviewScheduleHours: String(s.interviewScheduleHours ?? 3),
           atsTargetScore: String(s.atsTargetScore ?? 85),
+          memberReportsEnabled: s.memberReportsEnabled ?? true,
           resumePromptTemplate: s.resumePromptTemplate || defaultResumePrompt,
         });
       })
@@ -329,6 +331,10 @@ export default function SettingsPage() {
             <label className="flex cursor-pointer items-start gap-2.5 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
               <input type="checkbox" className="mt-0.5 size-4 rounded" checked={form.dailyReportEnabled} onChange={(e) => setForm({ ...form, dailyReportEnabled: e.target.checked })} />
               Send the midnight daily report
+            </label>
+            <label className="flex cursor-pointer items-start gap-2.5 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
+              <input type="checkbox" className="mt-0.5 size-4 rounded" checked={form.memberReportsEnabled} onChange={(e) => setForm({ ...form, memberReportsEnabled: e.target.checked })} />
+              Post each member&apos;s daily report (work time, applications, interviews) to Chat → Daily reports
             </label>
             <label className="flex cursor-pointer items-start gap-2.5 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
               <input type="checkbox" className="mt-0.5 size-4 rounded" checked={form.notificationsEnabled} onChange={(e) => setForm({ ...form, notificationsEnabled: e.target.checked })} />

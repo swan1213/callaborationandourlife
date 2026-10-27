@@ -50,6 +50,7 @@ export const PATCH = handler(async (req: Request) => {
     settings.companyCooldownDays = d;
   }
   if (typeof body.dailyReportEnabled === "boolean") settings.dailyReportEnabled = body.dailyReportEnabled;
+  if (typeof body.memberReportsEnabled === "boolean") settings.memberReportsEnabled = body.memberReportsEnabled;
   if (typeof body.notificationsEnabled === "boolean") settings.notificationsEnabled = body.notificationsEnabled;
   if (body.milestonePeriod === "daily" || body.milestonePeriod === "lifetime") settings.milestonePeriod = body.milestonePeriod;
   if (body.milestones !== undefined) {

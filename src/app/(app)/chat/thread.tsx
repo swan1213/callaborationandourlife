@@ -1,7 +1,7 @@
 "use client";
 
 // One conversation on the chat page: messages (replies, images, @mentions, reactions, edits, read receipts, job link
-// cards), the pinned bar, search, "is typing" and the composer. Polls GET /api/chat/[id] every few seconds.
+// cards, daily report cards), the pinned bar, search, "is typing" and the composer. Polls GET /api/chat/[id] every few seconds.
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -9,12 +9,14 @@ import {
   AtSign,
   Briefcase,
   ChevronRight,
+  ClipboardList,
   Copy,
   Hash,
   ImagePlus,
   Pencil,
   Pin,
   PinOff,
+  RefreshCw,
   Reply,
   Search,
   SendHorizontal,
@@ -34,6 +36,7 @@ import Lightbox, { type Slide } from "@/components/Lightbox";
 import { PresenceAvatar, PresenceLabel, usePresence } from "@/components/Presence";
 import { api, fmtDate, fmtDateTime, Spinner } from "@/components/ui";
 import { isEmojiOnly } from "@/lib/emoji";
+import { fmtMinutes, isEmptyReport, OUTCOME_LABEL, type WorkReport } from "@/lib/workReport";
 
 type Reaction = { emoji: string; users: { _id: string; name: string }[] };
 type Img = { url: string; width: number | null; height: number | null };
@@ -45,6 +48,8 @@ export type Msg = {
   images: Img[];
   replyTo: { _id: string; senderName: string; body: string; image: boolean } | null;
   mentions: { _id: string; name: string }[];
+  /** A member's automatic daily report (Daily reports chat). */
+  report: WorkReport | null;
   reactions: Reaction[];
   edited: boolean;
   deleted: boolean;
@@ -55,7 +60,7 @@ type Reader = { user: string; name: string; avatar: string; at: string };
 type PinRow = { _id: string; body: string; senderName: string; pinnedBy: string; pinnedAt: string };
 type LinkInfo = Record<string, { company: string; jobTitle: string }>;
 type Thread = {
-  conversation: { _id: string; kind: "team" | "direct"; name: string; other: ChatPerson | null; pinned: PinRow[] };
+  conversation: { _id: string; kind: "team" | "direct" | "reports"; name: string; other: ChatPerson | null; pinned: PinRow[] };
   messages: Msg[];
   hasMore: boolean;
   now: string;
@@ -101,6 +106,7 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
   const [highlight, setHighlight] = useState("");
   const [pinIdx, setPinIdx] = useState(0);
   const [searching, setSearching] = useState(false);
+  const [posting, setPosting] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -294,6 +300,27 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
     }
   }
 
+  async function postReports() {
+    if (
+      !(await confirm({
+        title: "Post the reports now?",
+        message: "Every member's report since the last reports is posted now. Tonight's reports then start from here.",
+        confirmLabel: "Post now",
+      }))
+    )
+      return;
+    setPosting(true);
+    try {
+      const r = await api<{ posted: number }>("/api/chat/reports", { method: "POST" });
+      stick.current = true;
+      toast.success(r.posted ? `Posted ${r.posted} report${r.posted === 1 ? "" : "s"}` : "No member had activity to report");
+    } catch (e) {
+      toast.error("Couldn't post the reports", (e as Error).message);
+    } finally {
+      setPosting(false);
+    }
+  }
+
   async function pin(m: Msg | PinRow, pinned: boolean) {
     try {
       await api(`/api/chat/${id}/pin`, { method: "POST", json: { messageId: m._id, pinned } });
@@ -445,7 +472,7 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
       const pinned = pins.some((p) => p._id === m._id);
       items.push({ label: pinned ? "Unpin" : "Pin to top", icon: pinned ? PinOff : Pin, onSelect: () => pin(m, !pinned) });
     }
-    if (mine || (isAdmin && c?.kind === "team")) items.push("divider", { label: "Delete", icon: Trash2, danger: true, onSelect: () => remove(m) });
+    if (mine || (isAdmin && c?.kind !== "direct")) items.push("divider", { label: "Delete", icon: Trash2, danger: true, onSelect: () => remove(m) });
     return items;
   }
 
@@ -466,6 +493,19 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
                 <Users className="size-3" /> Everyone on the team can read this
               </span>
             </span>
+          </>
+        ) : c?.kind === "reports" ? (
+          <>
+            <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+              <ClipboardList className="size-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold text-slate-900">Daily reports</span>
+              <span className="block truncate text-xs text-slate-500">Each member&apos;s day, posted every evening · only admins see this</span>
+            </span>
+            <button className="btn btn-ghost btn-sm shrink-0" onClick={postReports} disabled={posting} title="Post every member's report now, covering the time since the last reports">
+              {posting ? <Spinner className="size-3.5" /> : <RefreshCw />} <span className="hidden sm:inline">Post now</span>
+            </button>
           </>
         ) : c?.other ? (
           <>
@@ -532,7 +572,13 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
               </div>
             )}
             {!messages.length && (
-              <div className="py-10 text-center text-sm text-slate-500">{c?.kind === "team" ? "No messages yet. Say hello to the team." : `No messages yet. Say hello to ${c?.other?.name ?? "them"}.`}</div>
+              <div className="py-10 text-center text-sm text-slate-500">
+                {c?.kind === "team"
+                  ? "No messages yet. Say hello to the team."
+                  : c?.kind === "reports"
+                    ? "No reports yet. Each member's report is posted here every evening (or click Post now)."
+                    : `No messages yet. Say hello to ${c?.other?.name ?? "them"}.`}
+</div>
             )}
             {messages.map((m, i) => {
               const prev = messages[i - 1];
@@ -559,7 +605,7 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
                     className={`flex gap-2 rounded-xl transition-colors duration-700 ${mine ? "flex-row-reverse" : ""} ${grouped ? "mt-0.5" : "mt-3"} ${highlight === m._id ? "bg-amber-100/70" : ""}`}
                   >
                     <span className="w-7 shrink-0">{!mine && !grouped && <Avatar avatar={person?.avatar} name={m.senderName} size={28} />}</span>
-                    <div className={`group flex max-w-[75%] min-w-0 flex-col ${mine ? "items-end" : "items-start"}`}>
+                    <div className={`group flex min-w-0 flex-col ${m.report ? "max-w-[calc(100%-2.25rem)]" : "max-w-[75%]"} ${mine ? "items-end" : "items-start"}`}>
                       {!grouped && (
                         <span className="mb-0.5 text-[11px] text-slate-500">
                           {!mine && <span className="font-medium text-slate-700">{m.senderName} </span>}
@@ -570,6 +616,8 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
                       <div className={`flex max-w-full items-center gap-1 ${mine ? "flex-row-reverse" : ""}`}>
                         {m.deleted ? (
                           <div className="rounded-2xl border border-dashed border-slate-200 px-3 py-1.5 text-[13px] text-slate-400 italic">Message deleted</div>
+                        ) : m.report ? (
+                          <ReportCard r={m.report} highlight={mentionsMe} />
                         ) : (
                           <div
                             className={
@@ -778,7 +826,9 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
             ref={input}
             className="input max-h-40 min-h-10 flex-1 resize-none py-2"
             rows={1}
-            placeholder={c?.kind === "team" ? "Message the team · @ to mention" : c?.other ? `Message ${c.other.name}` : "Write a message"}
+            placeholder={
+              c?.kind === "team" ? "Message the team · @ to mention" : c?.kind === "reports" ? "Comment for the other admins" : c?.other ? `Message ${c.other.name}` : "Write a message"
+            }
             value={draft}
             maxLength={MAX_MESSAGE}
             disabled={!thread}
@@ -946,6 +996,81 @@ function SearchPanel({ convId, onPick }: { convId: string; onPick: (messageId: s
         ))}
       </ul>
       {!results && !busy && <p className="px-3 pb-3 text-xs text-slate-400">Type at least 2 characters.</p>}
+    </div>
+  );
+}
+
+const when = (iso: string) => new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
+/** A member's daily report (Daily reports chat): work time, applications per profile, interviews, links and chat. */
+function ReportCard({ r, highlight }: { r: WorkReport; highlight: boolean }) {
+  const [y, mo, d] = r.day.split("-").map(Number);
+  const dayLabel = new Date(y, mo - 1, d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  const iv = r.interviews;
+  const outcomes = (Object.keys(OUTCOME_LABEL) as (keyof typeof OUTCOME_LABEL)[]).filter((k) => iv.outcomes[k]).map((k) => `${iv.outcomes[k]} ${OUTCOME_LABEL[k]}`);
+  const stats: { label: string; value: number; hint?: string; detail?: string }[] = [];
+  if (r.role !== "caller" || r.apps.generated || r.apps.submitted) stats.push({ label: "Generated", value: r.apps.generated }, { label: "Submitted", value: r.apps.submitted });
+  if (r.apps.failed) stats.push({ label: "Not generated", value: r.apps.failed, hint: "The job description couldn't be read" });
+  if (r.role === "caller" || iv.held) stats.push({ label: "Interviews held", value: iv.held });
+  if (r.role === "caller" || iv.reported) stats.push({ label: "Results reported", value: iv.reported, detail: outcomes.join(", ") || undefined });
+  if (iv.requested) stats.push({ label: "Interviews requested", value: iv.requested });
+  if (r.linksCopied) stats.push({ label: "Links copied", value: r.linksCopied });
+  if (r.chatMessages) stats.push({ label: "Chat messages", value: r.chatMessages });
+
+  return (
+    <div className={`w-[22rem] max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-[var(--surface)] text-[13px] ${highlight ? "ring-2 ring-amber-400/70" : ""}`}>
+      <div className="flex items-center gap-2 border-b border-slate-200 bg-emerald-50/60 px-3 py-2">
+        <ClipboardList className="size-4 shrink-0 text-emerald-600" />
+        <span className="min-w-0 flex-1 truncate font-semibold text-slate-900">Daily report · {dayLabel}</span>
+        <span className="shrink-0 text-[11px] text-slate-500">{ROLE_LABEL[r.role] ?? r.role}</span>
+      </div>
+      {isEmptyReport(r) ? (
+        <p className="px-3 py-2.5 text-slate-500">No activity recorded.</p>
+      ) : (
+        <div className="space-y-2.5 px-3 py-2.5">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+            <span className="text-slate-500">Work time</span>
+            <span className="text-slate-900">
+              <span className="font-semibold tabular-nums">{r.work.minutes ? fmtMinutes(r.work.minutes) : "—"}</span>
+              {r.work.first && r.work.last && (
+                <span className="ml-1.5 text-xs text-slate-500">
+                  {clock(r.work.first)} – {clock(r.work.last)}
+                </span>
+              )}
+            </span>
+          </div>
+          {stats.length > 0 && (
+            <div className="grid grid-cols-2 gap-1.5">
+              {stats.map((s) => (
+                <div key={s.label} className="rounded-lg bg-slate-50 px-2.5 py-1.5" title={s.hint}>
+                  <div className="text-lg leading-tight font-semibold text-slate-900 tabular-nums">{s.value}</div>
+                  <div className="truncate text-[11px] text-slate-500">{s.label}</div>
+                  {s.detail && <div className="text-[11px] text-slate-500">{s.detail}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+          {r.apps.byProfile.length > 0 && (
+            <div>
+              <div className="mb-1 text-[11px] font-medium text-slate-400">By profile</div>
+              <ul className="space-y-0.5">
+                {r.apps.byProfile.map((p) => (
+                  <li key={p.label} className="flex flex-wrap items-baseline justify-between gap-x-2">
+                    <span className="min-w-0 truncate text-slate-700">{p.label}</span>
+                    <span className="text-xs text-slate-500 tabular-nums">
+                      {p.generated} generated · {p.submitted} submitted
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="border-t border-slate-200 px-3 py-1.5 text-[11px] text-slate-400">
+        Automatic · {when(r.from)} – {when(r.to)}
+      </div>
     </div>
   );
 }

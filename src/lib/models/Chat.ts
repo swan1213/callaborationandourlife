@@ -1,10 +1,14 @@
 import { Schema, type Model, Types } from "mongoose";
 import { defineModel } from "./define";
+import type { WorkReport } from "../workReport";
 
-/** A chat: the whole-team channel (one, key "team") or a direct conversation between two accounts. */
+/**
+ * A chat: the whole-team channel (one, key "team"), a direct conversation between two accounts, or the admins-only
+ * daily reports channel (one, key "reports"; lib/memberReports.ts posts each member's report there every evening).
+ */
 const ChatConversationSchema = new Schema(
   {
-    kind: { type: String, enum: ["team", "direct"], required: true },
+    kind: { type: String, enum: ["team", "direct", "reports"], required: true },
     /** "team", or "dm:<id>:<id>" with the two account ids sorted, so each pair has one conversation. */
     key: { type: String, required: true, unique: true },
     /** The two accounts of a direct conversation (empty for the team channel: every approved account). */
@@ -30,7 +34,7 @@ const ChatConversationSchema = new Schema(
 );
 
 export type ChatConversationFields = {
-  kind: "team" | "direct";
+  kind: "team" | "direct" | "reports";
   key: string;
   members: Types.ObjectId[];
   lastMessageAt: Date | null;
@@ -75,6 +79,8 @@ const ChatMessageSchema = new Schema(
       ],
       default: [],
     },
+    /** An automatic daily report (lib/workReport.ts WorkReport), shown as a card; `body` holds the same as text. */
+    report: { type: Schema.Types.Mixed, default: null },
   },
   { timestamps: true }
 );
@@ -94,6 +100,7 @@ export type ChatMessageFields = {
   images: ChatImage[];
   replyTo: ChatReply | null;
   mentions: { user: Types.ObjectId; name: string }[];
+  report?: WorkReport | null;
   editedAt: Date | null;
   deletedAt: Date | null;
   reactions: ChatReaction[];

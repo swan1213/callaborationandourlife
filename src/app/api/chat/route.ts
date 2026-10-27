@@ -3,22 +3,24 @@ import type { Types } from "mongoose";
 import { HttpError, quietHandler, handler, requireUser } from "@/lib/auth";
 import { ChatConversation, ChatMessage, ChatRead, type ChatConversationFields } from "@/lib/models/Chat";
 import { User } from "@/lib/models/User";
-import { directConversation, teamConversation, UNREAD_CAP } from "@/lib/chat";
+import { directConversation, reportsConversation, teamConversation, UNREAD_CAP } from "@/lib/chat";
 import { oid } from "@/lib/query";
 
 type Conv = ChatConversationFields & { _id: Types.ObjectId };
 
 /**
- * GET — the account's conversations (team channel first, then direct ones by latest message) with unread counts.
+ * GET — the account's conversations (team channel first, then for admins the daily reports, then direct ones by latest
+ * message) with unread counts.
  * Polled by the header button and the chat page, so it stays out of the activity log.
  */
 export const GET = quietHandler(async () => {
   const me = await requireUser();
-  const [team, directs] = await Promise.all([
+  const [team, reports, directs] = await Promise.all([
     teamConversation(),
+    me.role === "admin" ? reportsConversation() : null,
     ChatConversation.find({ kind: "direct", members: me._id, lastMessageAt: { $ne: null } }).sort({ lastMessageAt: -1 }).limit(200).lean<Conv[]>(),
   ]);
-  const convs = [team, ...directs];
+  const convs = [team, ...(reports ? [reports] : []), ...directs];
 
   const otherIds = directs.map((c) => c.members.find((m) => !m.equals(me._id))).filter((x): x is Types.ObjectId => !!x);
   const [others, reads] = await Promise.all([
@@ -44,7 +46,7 @@ export const GET = quietHandler(async () => {
     return {
       _id: String(c._id),
       kind: c.kind,
-      name: c.kind === "team" ? "Team chat" : (other?.name ?? "Deleted account"),
+      name: c.kind === "team" ? "Team chat" : c.kind === "reports" ? "Daily reports" : (other?.name ?? "Deleted account"),
       other: c.kind === "direct" ? { _id: String(otherId ?? ""), name: other?.name ?? "Deleted account", avatar: other?.avatar ?? "", role: other?.role ?? "" } : null,
       lastMessage: c.lastMessageAt ? { body: c.lastMessage.body, senderName: c.lastMessage.senderName, mine: !!c.lastMessage.sender?.equals(me._id), at: c.lastMessageAt } : null,
       unread: unread[i],

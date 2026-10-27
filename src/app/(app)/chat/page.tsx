@@ -2,7 +2,7 @@
 
 import { Fragment, Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bell, BellOff, Hash, MessageCirclePlus, Search, X } from "lucide-react";
+import { Bell, BellOff, ClipboardList, Hash, MessageCirclePlus, Search, X } from "lucide-react";
 import { useToast } from "@/components/Alerts";
 import { chatSoundOn, setChatSound, useChat, type ChatConversation } from "@/components/Chat";
 import { PresenceAvatar, usePresence } from "@/components/Presence";
@@ -123,6 +123,10 @@ function ConversationList({ conversations, active, loaded, onOpen }: { conversat
                 <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
                   <Hash className="size-4" />
                 </span>
+              ) : c.kind === "reports" ? (
+                <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                  <ClipboardList className="size-4" />
+                </span>
               ) : (
                 <PresenceAvatar userId={c.other?._id ?? ""} avatar={c.other?.avatar} name={c.name} size={32} />
               )}
@@ -133,7 +137,13 @@ function ConversationList({ conversations, active, loaded, onOpen }: { conversat
                 </span>
                 <span className="flex items-center justify-between gap-2">
                   <span className={`truncate text-xs ${c.unread ? "text-slate-700" : "text-slate-500"}`}>
-                    {c.lastMessage ? `${c.lastMessage.mine ? "You" : c.kind === "team" ? c.lastMessage.senderName : ""}${c.lastMessage.mine || c.kind === "team" ? ": " : ""}${c.lastMessage.body}` : c.kind === "team" ? "Everyone on the team" : "No messages yet"}
+                    {c.lastMessage
+                      ? `${c.lastMessage.mine ? "You: " : c.kind !== "direct" && c.lastMessage.senderName !== "TailorBid" ? `${c.lastMessage.senderName}: ` : ""}${c.lastMessage.body}`
+                      : c.kind === "team"
+                        ? "Everyone on the team"
+                        : c.kind === "reports"
+                          ? "Member reports arrive every evening"
+                          : "No messages yet"}
                   </span>
                   {c.unread > 0 && (
                     <span className="inline-flex h-4.5 min-w-4.5 shrink-0 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-[10px] font-semibold text-white tabular-nums">

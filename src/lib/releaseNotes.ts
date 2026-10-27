@@ -25,6 +25,20 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-26-4",
+    date: "2026-10-26",
+    title: "Daily reports in Chat",
+    changes: [
+      {
+        text: "New Daily reports chat for admins: every evening each member's day is posted automatically (work time, applications generated and submitted per profile, interviews, job links copied, chat messages).",
+        roles: ["admin"],
+      },
+      { text: "Post now in Daily reports posts every member's report right away. Settings has a switch to turn them off.", roles: ["admin"] },
+      { text: "Admins now get an automatic daily summary of your work in TailorBid (work time, applications, interviews), so there's no report to write.", roles: ["user", "bidder", "caller"] },
+    ],
+    steps: [{ text: "Open Chat → Daily reports; the first reports arrive this evening.", roles: ["admin"] }],
+  },
+  {
     id: "2026-10-26-3",
     date: "2026-10-26",
     title: "Chat: mentions, screenshots, replies and more",

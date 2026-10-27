@@ -285,6 +285,11 @@ export const HELP_PAGES: HelpPage[] = [
       { title: "Pinned messages", detail: "Admins can pin up to 5 messages to the top of Team chat (rules, prices, announcements). Click the pinned bar to jump to the message; the arrow shows the next one." },
       { title: "Search", detail: "The magnifier in the conversation header searches its messages, names and links; click a result to jump to it." },
       { title: "Job links", detail: "A job link in a message shows a card (the role and company when someone already generated from it) with a Generate button that opens Generate with the link filled in." },
+      {
+        title: "Daily reports (admins)",
+        detail:
+          "Every evening each member's day is posted automatically to Daily reports, a chat only admins see: work time, applications generated and submitted per profile, jobs that couldn't be generated, interviews requested, held and reported, job links copied and chat messages. Members who haven't worked for two weeks are left out. Post now posts the reports right away (the evening ones then start from there). Settings has the switch to turn them off.",
+      },
     ],
     tips: [
       "New messages appear within a few seconds while the chat is open; elsewhere in the app a pop-up tells you who wrote.",

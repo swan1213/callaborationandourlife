@@ -10,7 +10,7 @@ import { sendPush } from "./push";
 const READING_MS = 10_000;
 
 export async function notifyChatMessage(o: {
-  conversation: { _id: Types.ObjectId; kind: "team" | "direct"; members: Types.ObjectId[] };
+  conversation: { _id: Types.ObjectId; kind: "team" | "direct" | "reports"; members: Types.ObjectId[] };
   sender: { _id: Types.ObjectId; name: string };
   text: string;
   mentioned: Types.ObjectId[];

@@ -36,13 +36,13 @@ export const PATCH = handler(async (req: Request, { params }: Ctx) => {
 });
 
 /**
- * DELETE { messageId } — deletes a message: your own, or (admins) anyone's in the team chat. It stays as a
+ * DELETE { messageId } — deletes a message: your own, or (admins) anyone's in Team chat or Daily reports. It stays as a
  * "Message deleted" line; its text, images, reactions and any pin are removed.
  */
 export const DELETE = handler(async (req: Request, { params }: Ctx) => {
   const { me, c, m } = await load(req, params);
   const mine = m.sender.equals(me._id);
-  if (!mine && !(me.role === "admin" && c.kind === "team")) throw new HttpError(403, "You can only delete your own messages");
+  if (!mine && !(me.role === "admin" && c.kind !== "direct")) throw new HttpError(403, "You can only delete your own messages");
   const updated = await ChatMessage.findOneAndUpdate(
     { _id: m._id },
     { $set: { deletedAt: new Date(), body: "", images: [], reactions: [], mentions: [] } },

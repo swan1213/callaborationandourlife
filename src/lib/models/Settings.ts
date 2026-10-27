@@ -19,6 +19,8 @@ const SettingsSchema = new Schema(
     /** IANA timezone that defines "a day" for the midnight report and daily milestones. */
     reportTimezone: { type: String, default: "America/New_York" },
     dailyReportEnabled: { type: Boolean, default: true },
+    /** Post each member's daily report to the admins' Daily reports chat (lib/memberReports.ts). */
+    memberReportsEnabled: { type: Boolean, default: true },
     notificationsEnabled: { type: Boolean, default: true },
     /** Submitted-application counts that trigger a notification (1 = first submission). */
     milestones: { type: [Number], default: [1, 50, 100] },

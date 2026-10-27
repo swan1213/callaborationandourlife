@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { handler, HttpError } from "@/lib/auth";
 import { sendDailyReports } from "@/lib/notifications";
+import { postMemberReports } from "@/lib/memberReports";
 import { runInterviewSweep } from "@/lib/interviews";
 
 export const maxDuration = 60;
@@ -13,7 +14,8 @@ export const GET = handler(async (req: Request) => {
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) throw new HttpError(401, "Unauthorized");
   await connectDB();
   const report = await sendDailyReports();
+  const members = await postMemberReports().catch((e) => ({ error: String(e) }));
   // Fallback for deployments without a frequent interview cron.
   const interviews = await runInterviewSweep().catch((e) => ({ error: String(e) }));
-  return NextResponse.json({ ...report, interviews });
+  return NextResponse.json({ ...report, members, interviews });
 });

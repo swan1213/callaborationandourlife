@@ -1,4 +1,5 @@
-// Team chat: one channel for every approved account, plus direct conversations between two accounts.
+// Team chat: one channel for every approved account, direct conversations between two accounts, and the admins-only
+// Daily reports channel (lib/memberReports.ts).
 // The page (app/(app)/chat) and the header button poll the API; there is no socket.
 import { Types } from "mongoose";
 import { HttpError } from "./auth";
@@ -44,6 +45,7 @@ export function messageOut(m: ChatMsg) {
     replyTo: !deleted && m.replyTo?.message ? { _id: String(m.replyTo.message), senderName: m.replyTo.senderName, body: m.replyTo.body, image: !!m.replyTo.image } : null,
     mentions: deleted ? [] : (m.mentions ?? []).map((x) => ({ _id: String(x.user), name: x.name })),
     reactions: [...groups].map(([emoji, users]) => ({ emoji, users })),
+    report: deleted ? null : (m.report ?? null),
     edited: !!m.editedAt,
     deleted,
     createdAt: m.createdAt,
@@ -75,10 +77,20 @@ export async function directConversation(a: Types.ObjectId, b: Types.ObjectId) {
   ).lean<Conv>())!;
 }
 
-/** A conversation the account may read and write: the team channel, or a direct one it is part of. */
+/** The admins-only channel the daily member reports are posted to (created on first use). */
+export async function reportsConversation() {
+  return (await ChatConversation.findOneAndUpdate(
+    { key: "reports" },
+    { $setOnInsert: { kind: "reports", key: "reports", members: [] } },
+    { upsert: true, returnDocument: "after" }
+  ).lean<Conv>())!;
+}
+
+/** A conversation the account may read and write: the team channel, a direct one it is part of, or (admins) the reports. */
 export async function conversationFor(user: UserDoc, id: Types.ObjectId) {
   const c = await ChatConversation.findById(id).lean<Conv>();
-  if (!c || (c.kind === "direct" && !c.members.some((m) => m.equals(user._id)))) throw new HttpError(404, "Conversation not found");
+  if (!c || (c.kind === "direct" && !c.members.some((m) => m.equals(user._id))) || (c.kind === "reports" && user.role !== "admin"))
+    throw new HttpError(404, "Conversation not found");
   return c;
 }
 
