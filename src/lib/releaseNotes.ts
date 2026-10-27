@@ -25,6 +25,19 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-27",
+    date: "2026-10-27",
+    title: "Clearer same-company and duplicate checks",
+    changes: [
+      { text: "Generate now spots the same job pasted with a different link (extra ?utm_… tracking, www, /apply), so it isn't generated twice by mistake.", roles: APPS },
+      { text: "Paste a job-board link and you're warned right away if the profile already applied to that company, before clicking Generate.", roles: APPS },
+      { text: "A same-company block now shows the earlier application, when it opens again, and your other profiles that can apply now: click one to switch.", roles: APPS },
+      { text: "Import: blocked rows show the company, the earlier application and the date; pick another profile and click Retry blocked.", roles: APPS },
+      { text: "Settings: the cooldown can block only the same role at a company instead of every job there, and you can list companies without a cooldown.", roles: ["admin"] },
+    ],
+    steps: [{ text: "Open Settings → General to choose what the cooldown blocks and add exempt companies.", roles: ["admin"] }],
+  },
+  {
     id: "2026-10-26-6",
     date: "2026-10-26",
     title: "Group chats",

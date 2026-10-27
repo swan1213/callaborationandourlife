@@ -5,7 +5,7 @@ import { Settings, getSettings } from "./models/Settings";
 import { claim } from "./models/NotificationLog";
 import { appUrl, sendEmail } from "./email";
 import { notify, notifyEach } from "./inbox";
-import { companyKey } from "./company";
+import { companyKey, roleKey } from "./company";
 import { APP_TZ, dayKey, dayRange, formatDateTime, formatDayLong, formatTime, isValidTimeZone, localHour, zoneName } from "./tz";
 import {
   interviewAcceptedEmail,
@@ -481,10 +481,7 @@ function roleVisibility(u: Viewer): Record<string, unknown> {
 
 /* ------------------------------------------------------------ steps & chains */
 
-/** Normalised role: "Sr. Software Engineer (Backend)" → "sr software engineer backend". */
-export function roleKey(title: string) {
-  return (title || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-}
+export { roleKey }; // lives in lib/company.ts (client-safe); re-exported for existing imports
 
 export type ChainInfo = {
   previous: { id: string; step: number; status: string; caller: string | null; scheduledAt: Date | null; outcome: string | null }[];

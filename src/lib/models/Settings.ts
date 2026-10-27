@@ -28,6 +28,10 @@ const SettingsSchema = new Schema(
     milestonePeriod: { type: String, enum: ["daily", "lifetime"], default: "daily" },
     /** A profile cannot apply to the same company again within this many days (0 = off). */
     companyCooldownDays: { type: Number, default: 30, min: 0 },
+    /** What the cooldown blocks: every job at the company, or only the same role there (lib/cooldown.ts). */
+    cooldownScope: { type: String, enum: ["company", "role"], default: "company" },
+    /** Companies the cooldown never applies to (names as typed; matched with lib/company.ts companyMatchKey). */
+    cooldownExemptCompanies: { type: [String], default: [] },
     /** Hours a caller has to schedule an interview request before the responsible users are notified. */
     interviewScheduleHours: { type: Number, default: 3, min: 0.25 },
     /** Pages turned off per role ({ user: [keys], bidder: [...], caller: [...] }); see lib/pageAccess.ts. */

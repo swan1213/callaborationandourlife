@@ -8,7 +8,8 @@ import { canCallApi, governsApi } from "./pageAccess";
 import { getDisabledPages } from "./pageAccessStore";
 
 export class HttpError extends Error {
-  constructor(public status: number, message: string) {
+  /** `data` is merged into the JSON body next to `error` (e.g. what the page needs to explain a refusal). */
+  constructor(public status: number, message: string, public data?: Record<string, unknown>) {
     super(message);
   }
 }
@@ -84,7 +85,7 @@ export function handler<A extends unknown[]>(fn: (...args: A) => Promise<Respons
       res = await fn(...args);
     } catch (e) {
       error = e;
-      if (e instanceof HttpError) res = NextResponse.json({ error: e.message }, { status: e.status });
+      if (e instanceof HttpError) res = NextResponse.json({ ...e.data, error: e.message }, { status: e.status });
       else {
         console.error(e);
         res = NextResponse.json({ error: e instanceof Error ? e.message : "Server error" }, { status: 500 });
@@ -107,7 +108,7 @@ export function quietHandler<A extends unknown[]>(fn: (...args: A) => Promise<Re
     try {
       return await fn(...args);
     } catch (e) {
-      if (e instanceof HttpError) return NextResponse.json({ error: e.message }, { status: e.status });
+      if (e instanceof HttpError) return NextResponse.json({ ...e.data, error: e.message }, { status: e.status });
       console.error(e);
       return NextResponse.json({ error: e instanceof Error ? e.message : "Server error" }, { status: 500 });
     }

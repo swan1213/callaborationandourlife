@@ -25,11 +25,15 @@ type Settings = {
   milestones: number[];
   milestonePeriod: "daily" | "lifetime";
   companyCooldownDays: number;
+  cooldownScope: "company" | "role";
+  cooldownExemptCompanies: string[];
   interviewScheduleHours: number;
   atsTargetScore: number;
 };
 
-type FormState = Omit<Settings, "defaultFee" | "milestones" | "companyCooldownDays" | "interviewScheduleHours" | "atsTargetScore"> & {
+type FormState = Omit<Settings, "defaultFee" | "milestones" | "companyCooldownDays" | "cooldownExemptCompanies" | "interviewScheduleHours" | "atsTargetScore"> & {
+  /** One company per line. */
+  cooldownExemptCompanies: string;
   defaultFee: string;
   milestones: string;
   companyCooldownDays: string;
@@ -71,6 +75,8 @@ export default function SettingsPage() {
           defaultFee: String(s.defaultFee),
           milestones: (s.milestones ?? []).join(", "),
           companyCooldownDays: String(s.companyCooldownDays ?? 30),
+          cooldownScope: s.cooldownScope ?? "company",
+          cooldownExemptCompanies: (s.cooldownExemptCompanies ?? []).join("\n"),
           interviewScheduleHours: String(s.interviewScheduleHours ?? 3),
           atsTargetScore: String(s.atsTargetScore ?? 85),
           memberReportsEnabled: s.memberReportsEnabled ?? true,
@@ -173,6 +179,34 @@ export default function SettingsPage() {
                 A profile cannot apply to the same company again within this many days (0 = off). Blocked attempts are refused on screen. Profiles can override this.
               </span>
             </div>
+          </div>
+          <div>
+            <label className="label" htmlFor="cooldown-scope">Cooldown blocks</label>
+            <select
+              id="cooldown-scope"
+              className="input"
+              value={form.cooldownScope}
+              onChange={(e) => setForm({ ...form, cooldownScope: e.target.value as FormState["cooldownScope"] })}
+            >
+              <option value="company">Every job at the company</option>
+              <option value="role">Only the same role at the company</option>
+            </select>
+            <div className="hint">
+              {form.cooldownScope === "role"
+                ? "A profile can apply to different roles at one company; the same job title stays blocked."
+                : "One application per company per profile within the cooldown."}
+            </div>
+          </div>
+          <div>
+            <label className="label" htmlFor="cooldown-exempt">Companies without a cooldown</label>
+            <textarea
+              id="cooldown-exempt"
+              className="input min-h-24"
+              placeholder={"Amazon\nMicrosoft"}
+              value={form.cooldownExemptCompanies}
+              onChange={(e) => setForm({ ...form, cooldownExemptCompanies: e.target.value })}
+            />
+            <div className="hint">One per line, e.g. large employers with many unrelated openings. &ldquo;Acme&rdquo; also covers &ldquo;Acme, Inc.&rdquo;</div>
           </div>
           <div className="md:col-span-2">
             <label className="label">Interview scheduling deadline (hours)</label>

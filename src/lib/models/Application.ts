@@ -10,6 +10,8 @@ const ApplicationSchema = new Schema(
     /** Normalised company name (lib/company.ts) for the same-company cooldown. */
     companyKey: { type: String, default: "", index: true },
     jobUrl: { type: String, default: "" },
+    /** lib/links.ts urlKey of jobUrl: the same posting however the link was pasted ("" on older records). */
+    jobUrlKey: { type: String, default: "" },
     company: { type: String, default: "" },
     jobTitle: { type: String, default: "" },
     jobLocation: { type: String, default: "" },
@@ -52,6 +54,8 @@ const ApplicationSchema = new Schema(
   { timestamps: true }
 );
 ApplicationSchema.index({ createdAt: -1 });
+ApplicationSchema.index({ jobUrlKey: 1 });
+ApplicationSchema.index({ profile: 1, createdAt: -1 });
 
 export type ApplicationFields = InferSchemaType<typeof ApplicationSchema>;
 export const Application: Model<ApplicationFields> =

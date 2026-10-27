@@ -8,7 +8,9 @@ import { generateApplication } from "@/lib/generate";
 import { estimateCost, recordKeyResult, resolveOpenAI } from "@/lib/openaiKeys";
 import { monthStart, oid } from "@/lib/query";
 import { companyKey } from "@/lib/company";
-import { findCooldownHit, rejectForCooldown } from "@/lib/cooldown";
+import { cooldownRule, findCooldownHit, rejectForCooldown } from "@/lib/cooldown";
+import { findDuplicate } from "@/lib/duplicates";
+import { urlKey } from "@/lib/links";
 import { markPostingRead } from "@/lib/postingReads";
 import { manualLimitMessage, manualQueue } from "@/lib/manualQueue";
 
@@ -55,11 +57,15 @@ export const POST = handler(async (req: Request) => {
   }
 
   if (jobUrl && !target && !body.force) {
-    const dup = await Application.findOne({ user: user._id, profile: profile._id, jobUrl, deletedByUser: false }).select("_id status");
+    // Same posting however it was pasted (tracking parameters, www, /apply…): lib/links.ts urlKey.
+    const dup = await findDuplicate(user._id, profile._id, jobUrl);
     if (dup?.status === "not_generated") target = await Application.findById(dup._id); // retry the saved placeholder
     else if (dup)
       return NextResponse.json(
-        { error: "You already generated an application for this job with this profile.", duplicateId: String(dup._id) },
+        {
+          error: `You already generated an application for this job with this profile${dup.company ? ` (${[dup.company, dup.jobTitle].filter(Boolean).join(" · ")})` : ""}.`,
+          duplicateId: String(dup._id),
+        },
         { status: 409 }
       );
   }
@@ -83,6 +89,7 @@ export const POST = handler(async (req: Request) => {
       profile: profile._id,
       profileLabel: profile.label,
       jobUrl,
+      jobUrlKey: urlKey(jobUrl),
       company: hostLabel(jobUrl),
       fee: 0,
       status: "not_generated",
@@ -110,16 +117,18 @@ export const POST = handler(async (req: Request) => {
   let result;
   let job: Omit<ScrapedJob, "url">;
   const settings = await getSettings();
-  // Same-company cooldown: per profile, configurable globally and per profile.
-  const cooldownDays = profile.companyCooldownDays ?? settings.companyCooldownDays ?? 0;
-  const bidder = { name: user.name, email: user.email };
+  // Same-company cooldown: days set globally and per profile; scope and exempt companies in Settings.
+  const rule = cooldownRule(settings, profile);
+  const refuse = (hit: NonNullable<Awaited<ReturnType<typeof findCooldownHit>>>, company: string, role: string) =>
+    rejectForCooldown({ hit, user, settings, profile, company, role });
   try {
     // Job description: pasted text, or scraped from the URL.
     job = manualText ? await pastedJob(manualText, jobUrl) : await scrapeJob(jobUrl);
-    if (cooldownDays > 0 && job.companyTrusted && job.company) {
-      // Known before generation (structured data) → block without spending tokens.
-      const hit = await findCooldownHit(profile._id, job.company, cooldownDays);
-      if (hit) await rejectForCooldown({ hit, bidder, profileLabel: profile.label, company: job.company, role: job.title, jobUrl });
+    if (rule.days > 0 && job.companyTrusted && job.company) {
+      // Known before generation (structured data) → block without spending tokens. With the role scope and no title
+      // yet, it waits for the title the AI reads (below).
+      const hit = await findCooldownHit(profile._id, job.company, rule, job.title);
+      if (hit && !hit.sameRoleOnly) await refuse(hit, job.company, job.title);
     }
     phase = "generate";
     openai = await resolveOpenAI(profile);
@@ -138,15 +147,16 @@ export const POST = handler(async (req: Request) => {
   await recordKeyResult(openai!.apiKeyId);
 
   // Company identified by the AI (pasted descriptions, pages without structured data) → check again before saving.
-  if (cooldownDays > 0 && result.company) {
-    const hit = await findCooldownHit(profile._id, result.company, cooldownDays);
-    if (hit) {
+  if (rule.days > 0 && result.company) {
+    const hit = await findCooldownHit(profile._id, result.company, rule, result.jobTitle);
+    if (hit && !hit.sameRoleOnly) {
       await discardPlaceholder();
-      await rejectForCooldown({ hit, bidder, profileLabel: profile.label, company: result.company, role: result.jobTitle, jobUrl });
+      await refuse(hit, result.company, result.jobTitle);
     }
   }
 
   const fields = {
+    jobUrlKey: jobUrl ? urlKey(jobUrl) : "",
     company: result.company,
     companyKey: companyKey(result.company),
     jobTitle: result.jobTitle,

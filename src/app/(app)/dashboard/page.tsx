@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowRight, Check, FileSpreadsheet, Inbox, Link2, Search, Sparkles } from "lucide-react";
-import { Alert, api, ApiError, Badge, EmptyState, fmtDateTime, PageHeader, Spinner, CardSkeleton, useAsync } from "@/components/ui";
+import { Alert, api, ApiError, Badge, EmptyState, fmtDate, fmtDateTime, PageHeader, Spinner, CardSkeleton, useAsync } from "@/components/ui";
+import { CooldownActions, type CooldownAlternative, type CooldownInfo, type PreCheck } from "./cooldown";
 
 type ProfileOpt = {
   id: string;
@@ -44,6 +45,26 @@ export default function GeneratePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [duplicateId, setDuplicateId] = useState("");
+  // Refused by the same-company rule: the earlier application and the other profiles (409 reason "cooldown").
+  const [blocked, setBlocked] = useState<{ cooldown: CooldownInfo; alternatives: CooldownAlternative[] } | null>(null);
+  // What Generate would refuse for this link + profile, checked as it is pasted.
+  const [check, setCheck] = useState<PreCheck | null>(null);
+
+  useEffect(() => {
+    setCheck(null);
+    const url = jobUrl.trim();
+    if (!profileId || !/^https?:\/\/\S+\.\S+/i.test(url)) return;
+    let live = true;
+    const t = setTimeout(() => {
+      api<PreCheck>(`/api/applications/check?profileId=${profileId}&url=${encodeURIComponent(url)}`)
+        .then((r) => live && setCheck(r))
+        .catch(() => {}); // only a hint: Generate checks again
+    }, 400);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [profileId, jobUrl]);
 
   // ?url=… (the Generate button on a job link in chat) fills in the job URL.
   useEffect(() => {
@@ -72,10 +93,18 @@ export default function GeneratePage() {
     }
   }
 
+  /** "Try another profile" under a cooldown notice: switch and clear the refusal. */
+  function switchProfile(id: string) {
+    pickProfile(id);
+    setError("");
+    setBlocked(null);
+  }
+
   async function generate(force = false) {
     setBusy(true);
     setError("");
     setDuplicateId("");
+    setBlocked(null);
     try {
       const r = await api<{ id: string; status: string; company: string; jobTitle: string }>("/api/applications/generate", {
         method: "POST",
@@ -87,6 +116,8 @@ export default function GeneratePage() {
       const err = e as ApiError;
       setError(err.message);
       if (err.status === 409 && err.data.duplicateId) setDuplicateId(String(err.data.duplicateId));
+      if (err.status === 409 && err.data.reason === "cooldown")
+        setBlocked({ cooldown: err.data.cooldown as CooldownInfo, alternatives: (err.data.alternatives as CooldownAlternative[]) ?? [] });
       if (err.status === 422) setManual(true);
     } finally {
       setBusy(false);
@@ -244,9 +275,27 @@ export default function GeneratePage() {
                   </div>
                 )}
                 {quotaFull && <Alert>This profile has reached its monthly quota.</Alert>}
+                {!error && check?.duplicate && (
+                  <Alert kind="warning">
+                    You already generated this job with {selected?.label ?? "this profile"} on {fmtDate(check.duplicate.createdAt)}
+                    {check.duplicate.company && ` (${[check.duplicate.company, check.duplicate.jobTitle].filter(Boolean).join(" · ")})`}.{" "}
+                    <Link href={`/applications/${check.duplicate.id}`} className="font-medium underline underline-offset-2">
+                      View it
+                    </Link>
+                  </Alert>
+                )}
+                {!error && check?.cooldown && (
+                  <Alert kind={check.cooldown.sameRoleOnly ? "info" : "warning"}>
+                    {check.cooldown.sameRoleOnly
+                      ? `${selected?.label ?? "This profile"} applied to ${check.cooldown.company} on ${fmtDate(check.cooldown.lastAppliedAt)}. Only the same role is blocked until ${fmtDate(check.cooldown.eligibleAt)}; a different role is fine.`
+                      : `${selected?.label ?? "This profile"} applied to ${check.cooldown.company} on ${fmtDate(check.cooldown.lastAppliedAt)}. The ${check.cooldown.days}-day rule blocks ${check.cooldown.scope === "role" ? "this role" : "this company"} until ${fmtDate(check.cooldown.eligibleAt)}.`}
+                    <CooldownActions cooldown={check.cooldown} alternatives={check.alternatives} onPick={switchProfile} />
+                  </Alert>
+                )}
                 {error && (
                   <Alert>
                     {error}
+                    {blocked && <CooldownActions cooldown={blocked.cooldown} alternatives={blocked.alternatives} onPick={switchProfile} />}
                     {duplicateId && (
                       <div className="mt-2 flex flex-wrap gap-2">
                         <Link href={`/applications/${duplicateId}`} className="btn btn-secondary btn-sm">

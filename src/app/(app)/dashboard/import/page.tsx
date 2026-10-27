@@ -6,8 +6,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import SearchSelect from "@/components/SearchSelect";
 import { useToast } from "@/components/Alerts";
 import { ArrowRight, CircleCheck, Link2, ListChecks, Pause, Play, RefreshCw, Sparkles, Square, X } from "lucide-react";
-import { Alert, api, ApiError, Badge, EmptyState, PageHeader, Spinner, useAsync, useClientPaging } from "@/components/ui";
+import { Alert, api, ApiError, Badge, EmptyState, fmtDate, PageHeader, Spinner, useAsync, useClientPaging } from "@/components/ui";
 import { urlKey } from "@/lib/links";
+import { cooldownWho, type CooldownAlternative, type CooldownInfo } from "../cooldown";
 
 type ProfileOpt = { id: string; label: string; fullName: string; monthlyQuota: number; usedThisMonth: number };
 
@@ -20,6 +21,8 @@ type Row = {
   appId?: string;
   company?: string;
   jobTitle?: string;
+  /** Blocked by the same-company rule: the earlier application it counted. */
+  cooldown?: CooldownInfo;
 };
 
 const MAX_ROWS = 200;
@@ -178,7 +181,15 @@ export default function ImportPage() {
     } catch (e) {
       const err = e as ApiError;
       if (err.status === 409 && err.data.duplicateId) setRow(row.n, { state: "skipped", appId: String(err.data.duplicateId), message: "Already generated with this profile" });
-      else if (err.status === 409) setRow(row.n, { state: "blocked", message: err.message });
+      else if (err.status === 409 && err.data.reason === "cooldown") {
+        const cooldown = err.data.cooldown as CooldownInfo;
+        const free = ((err.data.alternatives as CooldownAlternative[]) ?? []).filter((a) => !a.eligibleAt).map((a) => a.label);
+        setRow(row.n, {
+          state: "blocked",
+          cooldown,
+          message: `Same-company rule: open again on ${fmtDate(cooldown.eligibleAt)}.${free.length ? ` Free now: ${free.slice(0, 3).join(", ")}${free.length > 3 ? ` +${free.length - 3}` : ""}.` : ""}`,
+        });
+      } else if (err.status === 409) setRow(row.n, { state: "blocked", message: err.message });
       else if (err.status === 429) {
         // Not run: nothing was saved for this link, so it doesn't add to either count.
         const manualLimit = err.data?.reason === "manual_limit";
@@ -369,6 +380,16 @@ export default function ImportPage() {
                       Retry {count("failed") + count("stopped") + count("not_generated")} failed / not generated / not run
                     </button>
                   )}
+                  {count("blocked") > 0 && (
+                    <button
+                      className="btn btn-secondary h-auto min-h-9 w-full py-2 text-center whitespace-normal"
+                      onClick={() => run(["blocked"])}
+                      title="After switching to another profile above, or once an admin changes the cooldown"
+                    >
+                      <RefreshCw />
+                      Retry {count("blocked")} blocked with {selected?.label ?? "this profile"}
+                    </button>
+                  )}
                   {!!rows.length && (
                     <button className="btn btn-ghost btn-sm w-full" onClick={() => ((rowsRef.current = []), setRows([]), setNotice(""))}>
                       <X />
@@ -501,6 +522,21 @@ export default function ImportPage() {
                                   <span className="font-medium text-slate-900 group-hover:underline">{r.company || "Unknown company"}</span>
                                   <span className="block text-xs text-slate-500">{r.jobTitle}</span>
                                 </Link>
+                              ) : r.state === "blocked" && r.cooldown ? (
+                                <span className="block min-w-[13rem]">
+                                  <span className="font-medium text-slate-900">{r.cooldown.company}</span>
+                                  <span className="block text-xs text-slate-500">
+                                    Applied {cooldownWho(r.cooldown)}
+                                    {r.cooldown.appId && (
+                                      <>
+                                        {" · "}
+                                        <Link href={`/applications/${r.cooldown.appId}`} className="link">
+                                          view
+                                        </Link>
+                                      </>
+                                    )}
+                                  </span>
+                                </span>
                               ) : r.appId ? (
                                 <Link href={`/applications/${r.appId}`} className="link inline-flex items-center gap-1 text-xs">
                                   {r.state === "not_generated" ? `${r.company ? `${r.company} · ` : ""}Add job description` : "Open existing"}

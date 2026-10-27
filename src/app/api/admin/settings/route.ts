@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { handler, HttpError, requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/models/Settings";
 import { isValidTimeZone } from "@/lib/tz";
+import { companyMatchKey } from "@/lib/company";
 import { DEFAULT_RESUME_PROMPT } from "@/lib/resumePrompt";
 
 export const GET = handler(async () => {
@@ -48,6 +49,15 @@ export const PATCH = handler(async (req: Request) => {
     const d = Number(body.companyCooldownDays);
     if (!Number.isInteger(d) || d < 0 || d > 365) throw new HttpError(400, "Company cooldown must be a whole number of days (0–365)");
     settings.companyCooldownDays = d;
+  }
+  if (body.cooldownScope === "company" || body.cooldownScope === "role") settings.cooldownScope = body.cooldownScope;
+  if (body.cooldownExemptCompanies !== undefined) {
+    // One company per line (or an array); blanks and repeats ("Acme" / "Acme, Inc.") dropped.
+    const list = (Array.isArray(body.cooldownExemptCompanies) ? body.cooldownExemptCompanies : String(body.cooldownExemptCompanies).split(/\r?\n/))
+      .map((x: unknown) => String(x).trim().slice(0, 100))
+      .filter(Boolean);
+    if (list.length > 500) throw new HttpError(400, "Up to 500 exempt companies");
+    settings.cooldownExemptCompanies = [...new Map<string, string>(list.map((n: string) => [companyMatchKey(n) || n.toLowerCase(), n])).values()];
   }
   if (typeof body.dailyReportEnabled === "boolean") settings.dailyReportEnabled = body.dailyReportEnabled;
   if (typeof body.memberReportsEnabled === "boolean") settings.memberReportsEnabled = body.memberReportsEnabled;
