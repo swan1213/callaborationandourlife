@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { FileText, FlaskConical, Info, Link2, RotateCcw, Save, Settings, Sparkles } from "lucide-react";
 import { Alert, api, EmptyState, PageHeader, Section, Spinner, useAsync } from "@/components/ui";
+import { SalaryBanner } from "@/components/SalaryBanner";
 import SearchSelect from "@/components/SearchSelect";
 import { useConfirm, useToast } from "@/components/Alerts";
 import ResumePreview, { LetterPreview } from "@/components/ResumePreview";
@@ -330,7 +331,12 @@ export default function PromptTestPage() {
                   jobLocation={out.result.jobLocation}
                 />
               )}
-              {tab === "Job description" && <div className="max-h-[40rem] overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-slate-700">{out.result.jobDescription}</div>}
+              {tab === "Job description" && (
+                <>
+                  <SalaryBanner jobDescription={out.result.jobDescription} className="mb-3" />
+                  <div className="max-h-[40rem] overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-slate-700">{out.result.jobDescription}</div>
+                </>
+              )}
               </div>
             </section>
           )}

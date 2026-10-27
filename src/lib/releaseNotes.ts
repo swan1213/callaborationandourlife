@@ -25,6 +25,17 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-27-4",
+    date: "2026-10-27",
+    title: "Salary at the top of the job description",
+    changes: [
+      {
+        text: "When the job posting states a salary, it's shown highlighted at the top of the Job description tab and of the downloaded job description file. This works for applications you already made too.",
+        roles: APPS,
+      },
+    ],
+  },
+  {
     id: "2026-10-27-3",
     date: "2026-10-27",
     title: "More natural cover letters",

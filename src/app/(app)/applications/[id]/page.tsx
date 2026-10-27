@@ -6,6 +6,7 @@ import ScreenshotUploader from "@/components/ScreenshotUploader";
 import Lightbox, { type Slide } from "@/components/Lightbox";
 import PostingLink from "@/components/PostingLink";
 import { Alert, api, Badge, downloadFile, fmtDateTime, PageHeader, Section, Spinner, PageSkeleton, useAsync } from "@/components/ui";
+import { SalaryBanner } from "@/components/SalaryBanner";
 import type { ResumeContent } from "@/lib/generate";
 import ResumePreview from "@/components/ResumePreview";
 import MatchScore from "@/components/MatchScore";
@@ -293,6 +294,7 @@ export default function ApplicationDetail({
             )}
             {tab === "Job description" && (
               <div className="card-body">
+                <SalaryBanner jobDescription={app.jobDescription ?? ""} className="mb-4" />
                 <pre className="font-sans text-sm leading-relaxed whitespace-pre-wrap text-slate-700">{app.jobDescription}</pre>
               </div>
             )}

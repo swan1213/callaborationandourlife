@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import { HttpError } from "./auth";
+import { findSalary, salaryFromJobPosting } from "./salary";
 
 export type ScrapedJob = {
   url: string;
@@ -265,8 +266,13 @@ export async function scrapeJob(rawUrl: string): Promise<ScrapedJob> {
   });
   if (posting) {
     const p = posting as JsonLd;
-    const text = htmlToText(str(p.description));
+    let text = htmlToText(str(p.description));
     if (text.length > 200) {
+      // Pay shown on the page from the posting's data but not written in its description: keep it with the text.
+      const pay = findSalary(text) ? "" : salaryFromJobPosting(p.baseSalary);
+      if (pay) text = `${text.slice(0, MAX_TEXT - 200)}
+
+Salary: ${pay}`;
       return {
         url: url.toString(),
         title: str(p.title),

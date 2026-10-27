@@ -8,6 +8,7 @@ import { formatRange, type ResumeContent } from "./generate";
 import { displayUrl } from "./links";
 import { resumeHeadline } from "./headline";
 import { atsSpec, type AtsSpec } from "./designs";
+import { findSalary } from "./salary";
 
 export type AppDocSource = {
   _id: unknown;
@@ -180,7 +181,11 @@ export async function jobDescriptionDocx(app: AppDocSource): Promise<Buffer> {
     ] as [string, string][]
   ).filter(([, v]) => v);
 
+  // Pay stated in the posting goes first, highlighted, so it's seen before anything else.
+  const salary = findSalary(app.jobDescription || "");
+  const pay = (text: string) => new TextRun({ text, bold: true, size: 26, font: FONT, color: BLACK, highlight: "yellow" });
   const children: Paragraph[] = [
+    ...(salary ? [new Paragraph({ spacing: { after: 160 }, children: [pay("Salary: "), pay(salary)] })] : []),
     new Paragraph({ spacing: { after: 120 }, children: [t(app.jobTitle || "Job Description", true, 32)] }),
     ...meta.map(([k, v]) => new Paragraph({ children: [t(`${k}: `, true), t(v)] })),
     ...heading("Job Description"),
