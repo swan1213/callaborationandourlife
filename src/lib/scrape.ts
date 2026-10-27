@@ -52,6 +52,8 @@ function clean(text: string) {
   return text
     .replace(/ /g, " ")
     .replace(/[ \t]+/g, " ")
+    .replace(/\\r\\n|\\n|\\r/g, "\n") // "\n" typed into the employer's HTML as text (seen on Lever)
+    .replace(/[ \t]+\n/g, "\n")
     .replace(/\n\s*\n\s*\n+/g, "\n\n")
     .trim();
 }

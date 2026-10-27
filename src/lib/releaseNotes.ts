@@ -25,6 +25,17 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-27-5",
+    date: "2026-10-27",
+    title: "Cleaner job descriptions",
+    changes: [
+      {
+        text: "Job descriptions no longer show stray \"\\n\" lines that some postings (e.g. on Lever) carry. This also fixes ones already generated, on the page and in the downloaded file.",
+        roles: APPS,
+      },
+    ],
+  },
+  {
     id: "2026-10-27-4",
     date: "2026-10-27",
     title: "Salary at the top of the job description",
