@@ -86,14 +86,19 @@ export const GET = quietHandler(async (req: Request, { params }: Ctx) => {
     return u ? [{ user: String(r.user), name: u.name, avatar: u.avatar ?? "", at: r.at }] : [];
   });
 
-  const otherId = c.members.find((m) => !m.equals(me._id));
-  const other = otherId ? await User.findById(otherId).select("name avatar role").lean() : null;
+  const otherId = c.kind === "direct" ? c.members.find((m) => !m.equals(me._id)) : undefined;
+  const [other, groupMembers] = await Promise.all([
+    otherId ? User.findById(otherId).select("name avatar role").lean() : null,
+    c.kind === "group" ? User.find({ _id: { $in: c.members } }).select("name avatar role").sort({ name: 1 }).lean() : [],
+  ]);
   return NextResponse.json(
     {
       conversation: {
         _id: String(c._id),
         kind: c.kind,
-        name: c.kind === "team" ? "Team chat" : c.kind === "reports" ? "Daily reports" : (other?.name ?? "Deleted account"),
+        name: c.kind === "team" ? "Team chat" : c.kind === "reports" ? "Daily reports" : c.kind === "group" ? c.name || "Group" : (other?.name ?? "Deleted account"),
+        members: groupMembers.map((u) => ({ _id: String(u._id), name: u.name, avatar: u.avatar ?? "", role: u.role })),
+        createdBy: c.createdBy ? String(c.createdBy) : null,
         other: c.kind === "direct" ? { _id: String(otherId ?? ""), name: other?.name ?? "Deleted account", avatar: other?.avatar ?? "", role: other?.role ?? "" } : null,
         pinned: (c.pinned ?? []).map((p) => ({ _id: String(p.message), body: p.body, senderName: p.senderName, pinnedBy: p.pinnedBy, pinnedAt: p.pinnedAt })),
       },
@@ -138,15 +143,17 @@ export const POST = handler(async (req: Request, { params }: Ctx) => {
     if (original) replyTo = { message: original._id, senderName: original.senderName, body: preview(original, 140), image: !!original.images?.length };
   }
 
-  // Mentions (team chat): accounts picked from the @ list whose "@Name" is still in the text, and "@admins".
+  // Mentions (team chat and groups): accounts picked from the @ list whose "@Name" is still in the text, and "@admins".
+  // In a group only its members can be mentioned.
   let mentioned: { _id: Types.ObjectId; name: string }[] = [];
-  if (c.kind === "team" && body.includes("@")) {
+  if ((c.kind === "team" || c.kind === "group") && body.includes("@")) {
     const ids = (Array.isArray(b?.mentions) ? b.mentions : []).filter((x: unknown): x is string => typeof x === "string" && /^[a-f\d]{24}$/i.test(x));
     const lower = body.toLowerCase();
-    const picked = await User.find({ _id: { $in: ids }, status: "approved" }).select("name").lean<{ _id: Types.ObjectId; name: string }[]>();
+    const inGroup = c.kind === "group" ? { _id: { $in: c.members } } : {};
+    const picked = await User.find({ $and: [{ _id: { $in: ids } }, inGroup], status: "approved" }).select("name").lean<{ _id: Types.ObjectId; name: string }[]>();
     mentioned = picked.filter((u) => lower.includes(`@${u.name.toLowerCase()}`));
     if (/@admins\b/i.test(body)) {
-      const admins = await User.find({ role: "admin", status: "approved" }).select("name").lean<{ _id: Types.ObjectId; name: string }[]>();
+      const admins = await User.find({ role: "admin", status: "approved", ...inGroup }).select("name").lean<{ _id: Types.ObjectId; name: string }[]>();
       mentioned = [...mentioned, ...admins.filter((a) => !mentioned.some((m) => m._id.equals(a._id)))];
     }
   }

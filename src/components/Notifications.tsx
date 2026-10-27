@@ -18,6 +18,7 @@ import {
   Trophy,
   UserCheck,
   UserPlus,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -62,6 +63,7 @@ const KIND_ICON: Record<string, IconType> = {
   "feedback-reply": MessageSquareReply,
   milestone: Trophy,
   "chat-mention": AtSign,
+  "chat-group": Users,
 };
 const TONE_STYLE: Record<Note["tone"], string> = {
   info: "border-indigo-200 bg-indigo-50 text-indigo-600",

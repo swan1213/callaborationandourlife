@@ -9,18 +9,19 @@ import { oid } from "@/lib/query";
 type Conv = ChatConversationFields & { _id: Types.ObjectId };
 
 /**
- * GET — the account's conversations (team channel first, then for admins the daily reports, then direct ones by latest
- * message) with unread counts.
+ * GET — the account's conversations (team channel first, then for admins the daily reports, then the groups they are
+ * in, then direct ones; groups and direct ones by latest message) with unread counts.
  * Polled by the header button and the chat page, so it stays out of the activity log.
  */
 export const GET = quietHandler(async () => {
   const me = await requireUser();
-  const [team, reports, directs] = await Promise.all([
+  const [team, reports, groups, directs] = await Promise.all([
     teamConversation(),
     me.role === "admin" ? reportsConversation() : null,
+    ChatConversation.find({ kind: "group", members: me._id }).sort({ lastMessageAt: -1, createdAt: -1 }).limit(100).lean<Conv[]>(),
     ChatConversation.find({ kind: "direct", members: me._id, lastMessageAt: { $ne: null } }).sort({ lastMessageAt: -1 }).limit(200).lean<Conv[]>(),
   ]);
-  const convs = [team, ...(reports ? [reports] : []), ...directs];
+  const convs = [team, ...(reports ? [reports] : []), ...groups, ...directs];
 
   const otherIds = directs.map((c) => c.members.find((m) => !m.equals(me._id))).filter((x): x is Types.ObjectId => !!x);
   const [others, reads, typingRows] = await Promise.all([
@@ -45,12 +46,13 @@ export const GET = quietHandler(async () => {
   );
 
   const conversations = convs.map((c, i) => {
-    const otherId = c.members.find((m) => !m.equals(me._id));
+    const otherId = c.kind === "direct" ? c.members.find((m) => !m.equals(me._id)) : undefined;
     const other = otherId ? otherById.get(String(otherId)) : null;
     return {
       _id: String(c._id),
       kind: c.kind,
-      name: c.kind === "team" ? "Team chat" : c.kind === "reports" ? "Daily reports" : (other?.name ?? "Deleted account"),
+      name: c.kind === "team" ? "Team chat" : c.kind === "reports" ? "Daily reports" : c.kind === "group" ? c.name || "Group" : (other?.name ?? "Deleted account"),
+      memberCount: c.kind === "group" ? c.members.length : 0,
       other: c.kind === "direct" ? { _id: String(otherId ?? ""), name: other?.name ?? "Deleted account", avatar: other?.avatar ?? "", role: other?.role ?? "" } : null,
       lastMessage: c.lastMessageAt ? { body: c.lastMessage.body, senderName: c.lastMessage.senderName, mine: !!c.lastMessage.sender?.equals(me._id), at: c.lastMessageAt } : null,
       unread: unread[i],

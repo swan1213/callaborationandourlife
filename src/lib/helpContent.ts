@@ -278,6 +278,11 @@ export const HELP_PAGES: HelpPage[] = [
       { title: "Open chat", detail: "Click the chat icon in the top bar (it shows how many messages are unread) or Chat in the menu." },
       { title: "Team chat", detail: "Everyone on the team can read and write in Team chat. It opens first." },
       { title: "Message one person", detail: "Click New message and pick someone, or click the chat icon next to their name in Who is online. Only the two of you can read it." },
+      {
+        title: "Group chats",
+        detail:
+          "Admins make groups: the people icon next to New message, then a name and the members. Groups show under Groups and only their members see them. Everyone in a group can write, reply, react and @mention the members; only admins can rename it, add or remove members (Members, top right) or delete it. Click the group name to see who is in it.",
+      },
       { title: "Send", detail: "Type and press Enter (Shift+Enter starts a new line). The smiley next to the box adds emoji; a message of just one to three emoji shows large. Links you paste, such as job links, can be clicked." },
       { title: "Mention someone", detail: "In Team chat type @ and pick a name (or @admins for every admin). They get a notification in the bell, and a desktop alert if they turned those on." },
       { title: "Screenshots and images", detail: "Paste a screenshot with Ctrl+V, drag images in, or click the image button left of the message box (up to 6 per message, 10 MB each). Click an image to see it full size." },

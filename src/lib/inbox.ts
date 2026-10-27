@@ -22,7 +22,8 @@ export type NoticeKind =
   | "feedback-new"
   | "feedback-reply"
   | "milestone"
-  | "chat-mention";
+  | "chat-mention"
+  | "chat-group";
 export type NoticeTone = "info" | "success" | "warning" | "danger";
 export type NoticeInput = {
   kind: NoticeKind;

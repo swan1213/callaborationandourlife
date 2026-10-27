@@ -1,6 +1,6 @@
 // Alerts for chat messages, sent after the message is saved (never fails the send):
-// - @mentions in the team chat: a notification in the bell, pushed to the browsers that turned Desktop alerts on;
-// - direct messages: a desktop push to the other person, unless they are reading that conversation right now.
+// - @mentions in the team chat or a group: a notification in the bell, pushed to the browsers that turned Desktop alerts on;
+// - direct messages and groups: a desktop push to the other members, unless they are reading that conversation right now.
 import type { Types } from "mongoose";
 import { notify } from "./inbox";
 import { ChatRead } from "./models/Chat";
@@ -10,24 +10,33 @@ import { sendPush } from "./push";
 const READING_MS = 10_000;
 
 export async function notifyChatMessage(o: {
-  conversation: { _id: Types.ObjectId; kind: "team" | "direct" | "reports"; members: Types.ObjectId[] };
+  conversation: { _id: Types.ObjectId; kind: "team" | "direct" | "group" | "reports"; members: Types.ObjectId[]; name?: string };
   sender: { _id: Types.ObjectId; name: string };
   text: string;
   mentioned: Types.ObjectId[];
 }) {
   const url = `/chat?c=${o.conversation._id}`;
+  const where = o.conversation.kind === "group" ? o.conversation.name || "a group" : "Team chat";
   try {
-    if (o.conversation.kind === "direct") {
-      const other = o.conversation.members.find((m) => !m.equals(o.sender._id));
-      if (!other) return;
-      const read = await ChatRead.findOne({ conversation: o.conversation._id, user: other }).select("at").lean<{ at: Date }>();
-      if (read && Date.now() - read.at.getTime() < READING_MS) return;
-      await sendPush([String(other)], { title: o.sender.name, body: o.text, url, tag: `chat-${o.conversation._id}` });
-      return;
-    }
-    const to = o.mentioned.filter((u) => !u.equals(o.sender._id));
+    const mentioned = o.mentioned.filter((u) => !u.equals(o.sender._id));
+    if (mentioned.length)
+      await notify(mentioned, { kind: "chat-mention", title: `${o.sender.name} mentioned you in ${where}`, body: o.text, url, tag: `chat-mention-${o.conversation._id}` });
+
+    if (o.conversation.kind !== "direct" && o.conversation.kind !== "group") return;
+    // Everyone else in the chat (the mentioned already got the notification above) who isn't reading it right now.
+    const others = o.conversation.members.filter((m) => !m.equals(o.sender._id) && !mentioned.some((x) => x.equals(m)));
+    if (!others.length) return;
+    const reading = await ChatRead.find({ conversation: o.conversation._id, user: { $in: others }, at: { $gte: new Date(Date.now() - READING_MS) } })
+      .select("user")
+      .lean<{ user: Types.ObjectId }[]>();
+    const to = others.filter((m) => !reading.some((r) => r.user.equals(m))).map(String);
     if (to.length)
-      await notify(to, { kind: "chat-mention", title: `${o.sender.name} mentioned you in Team chat`, body: o.text, url, tag: `chat-mention-${o.conversation._id}` });
+      await sendPush(to, {
+        title: o.conversation.kind === "group" ? `${o.sender.name} in ${where}` : o.sender.name,
+        body: o.text,
+        url,
+        tag: `chat-${o.conversation._id}`,
+      });
   } catch (e) {
     console.error("chat alert failed", e);
   }

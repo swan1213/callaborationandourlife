@@ -2,11 +2,13 @@
 
 import { Fragment, Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bell, BellOff, ClipboardList, Hash, MessageCirclePlus, Search, X } from "lucide-react";
+import { Bell, BellOff, ClipboardList, Hash, MessageCirclePlus, Search, Users, X } from "lucide-react";
 import { useToast } from "@/components/Alerts";
+import { useRole } from "@/components/AppShell";
 import { chatSoundOn, setChatSound, useChat, type ChatConversation } from "@/components/Chat";
 import { PresenceAvatar, usePresence } from "@/components/Presence";
 import { api, fmtDate, fmtDateTime, Spinner } from "@/components/ui";
+import { CreateGroupDialog, GroupAvatar } from "./groups";
 import { ThreadView } from "./thread";
 
 const ROLE_LABEL: Record<string, string> = { admin: "Admin", user: "User", caller: "Caller", bidder: "Bidder" };
@@ -38,6 +40,8 @@ function ChatPage() {
   // ?c= picks a conversation; without it wide screens open the team channel (phones show the list).
   const active = sp.get("c") || (wide ? (team?._id ?? "") : "");
   const [picking, setPicking] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const isAdmin = useRole() === "admin";
 
   const open = useCallback((id: string) => router.replace(`/chat?c=${id}`, { scroll: false }), [router]);
 
@@ -75,6 +79,11 @@ function ChatPage() {
           <h1 className="text-[15px] font-semibold text-slate-900">Chat</h1>
           <span className="flex items-center gap-1">
             <SoundToggle />
+            {isAdmin && (
+              <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setCreating(true)} title="New group" aria-label="New group">
+                <Users />
+              </button>
+            )}
             <button className="btn btn-secondary btn-sm" onClick={() => setPicking((p) => !p)} aria-expanded={picking}>
               {picking ? <X /> : <MessageCirclePlus />} {picking ? "Cancel" : "New message"}
             </button>
@@ -95,6 +104,17 @@ function ChatPage() {
           </div>
         )}
       </section>
+      {creating && (
+        <CreateGroupDialog
+          me={chat.me}
+          onClose={() => setCreating(false)}
+          onCreated={(id) => {
+            setCreating(false);
+            chat.refresh();
+            open(id);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -111,7 +131,9 @@ function ConversationList({ conversations, active, loaded, onOpen }: { conversat
     <ul className="flex-1 overflow-y-auto p-1.5">
       {conversations.map((c, i) => (
         <Fragment key={c._id}>
-          {c.kind === "direct" && i === conversations.findIndex((x) => x.kind === "direct") && <li className="px-2 pt-3 pb-1 text-[11px] font-medium text-slate-400">Direct messages</li>}
+          {(c.kind === "group" || c.kind === "direct") && i === conversations.findIndex((x) => x.kind === c.kind) && (
+            <li className="px-2 pt-3 pb-1 text-[11px] font-medium text-slate-400">{c.kind === "group" ? "Groups" : "Direct messages"}</li>
+          )}
           <li>
             <button
               type="button"
@@ -127,6 +149,8 @@ function ConversationList({ conversations, active, loaded, onOpen }: { conversat
                 <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
                   <ClipboardList className="size-4" />
                 </span>
+              ) : c.kind === "group" ? (
+                <GroupAvatar />
               ) : (
                 <PresenceAvatar userId={c.other?._id ?? ""} avatar={c.other?.avatar} name={c.name} size={32} />
               )}
@@ -148,7 +172,9 @@ function ConversationList({ conversations, active, loaded, onOpen }: { conversat
                         ? "Everyone on the team"
                         : c.kind === "reports"
                           ? "Member reports arrive every evening"
-                          : "No messages yet"}
+                          : c.kind === "group"
+                            ? `${c.memberCount} members`
+                            : "No messages yet"}
                   </span>
                   )}
                   {c.unread > 0 && (

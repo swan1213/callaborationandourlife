@@ -25,6 +25,20 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-26-6",
+    date: "2026-10-26",
+    title: "Group chats",
+    changes: [
+      {
+        text: "Admins can make group chats: click the people icon next to New message, name the group and pick its members. Only the members see it.",
+        roles: ["admin"],
+      },
+      { text: "In a group, Members (top right) renames it, adds or removes people, or deletes the group. Admins can pin messages there too.", roles: ["admin"] },
+      { text: "Group chats: admins can add you to a group. Groups show under Groups in Chat; you can write, reply, react and @mention the members." },
+    ],
+    steps: [{ text: "Open Chat and click the people icon next to New message to make your first group.", roles: ["admin"] }],
+  },
+  {
     id: "2026-10-26-5",
     date: "2026-10-26",
     title: "Typing bubble and forwarding in chat",

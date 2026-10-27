@@ -3,16 +3,20 @@ import { defineModel } from "./define";
 import type { WorkReport } from "../workReport";
 
 /**
- * A chat: the whole-team channel (one, key "team"), a direct conversation between two accounts, or the admins-only
- * daily reports channel (one, key "reports"; lib/memberReports.ts posts each member's report there every evening).
+ * A chat: the whole-team channel (one, key "team"), a direct conversation between two accounts, a group an admin made
+ * (key "group:<id>"; only its members see it, only admins manage it), or the admins-only daily reports channel
+ * (one, key "reports"; lib/memberReports.ts posts each member's report there every evening).
  */
 const ChatConversationSchema = new Schema(
   {
-    kind: { type: String, enum: ["team", "direct", "reports"], required: true },
+    kind: { type: String, enum: ["team", "direct", "group", "reports"], required: true },
     /** "team", or "dm:<id>:<id>" with the two account ids sorted, so each pair has one conversation. */
     key: { type: String, required: true, unique: true },
-    /** The two accounts of a direct conversation (empty for the team channel: every approved account). */
+    /** The two accounts of a direct conversation, or a group's members (empty for the team channel: every approved account). */
     members: { type: [{ type: Types.ObjectId, ref: "User" }], default: [], index: true },
+    /** A group's name and the admin who made it. */
+    name: { type: String, default: "" },
+    createdBy: { type: Types.ObjectId, ref: "User", default: null },
     lastMessageAt: { type: Date, default: null },
     lastMessage: { body: { type: String, default: "" }, sender: { type: Types.ObjectId, ref: "User", default: null }, senderName: { type: String, default: "" } },
     /** Messages admins pinned to the top of the team chat (newest first; a snapshot, so a later edit doesn't change it). */
@@ -34,9 +38,11 @@ const ChatConversationSchema = new Schema(
 );
 
 export type ChatConversationFields = {
-  kind: "team" | "direct" | "reports";
+  kind: "team" | "direct" | "group" | "reports";
   key: string;
   members: Types.ObjectId[];
+  name?: string;
+  createdBy?: Types.ObjectId | null;
   lastMessageAt: Date | null;
   lastMessage: { body: string; sender: Types.ObjectId | null; senderName: string };
   pinned: ChatPin[];

@@ -1,4 +1,4 @@
-// Team chat: one channel for every approved account, direct conversations between two accounts, and the admins-only
+// Team chat: one channel for every approved account, direct conversations between two accounts, groups admins make, and the admins-only
 // Daily reports channel (lib/memberReports.ts).
 // The page (app/(app)/chat) and the header button poll the API; there is no socket.
 import { Types } from "mongoose";
@@ -87,10 +87,10 @@ export async function reportsConversation() {
   ).lean<Conv>())!;
 }
 
-/** A conversation the account may read and write: the team channel, a direct one it is part of, or (admins) the reports. */
+/** A conversation the account may read and write: the team channel, a direct chat or group it is in, or (admins) the reports. */
 export async function conversationFor(user: UserDoc, id: Types.ObjectId) {
   const c = await ChatConversation.findById(id).lean<Conv>();
-  if (!c || (c.kind === "direct" && !c.members.some((m) => m.equals(user._id))) || (c.kind === "reports" && user.role !== "admin"))
+  if (!c || ((c.kind === "direct" || c.kind === "group") && !c.members.some((m) => m.equals(user._id))) || (c.kind === "reports" && user.role !== "admin"))
     throw new HttpError(404, "Conversation not found");
   return c;
 }

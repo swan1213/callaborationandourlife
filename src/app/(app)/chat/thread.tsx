@@ -24,6 +24,7 @@ import {
   SmilePlus,
   Sparkles,
   Trash2,
+  UserPlus,
   Users,
   X,
 } from "lucide-react";
@@ -38,6 +39,7 @@ import { PresenceAvatar, PresenceLabel, usePresence } from "@/components/Presenc
 import { api, fmtDate, fmtDateTime, Modal, Spinner } from "@/components/ui";
 import { isEmojiOnly } from "@/lib/emoji";
 import { fmtMinutes, isEmptyReport, OUTCOME_LABEL, type WorkReport } from "@/lib/workReport";
+import { GroupAvatar, GroupDialog, type GroupMember } from "./groups";
 
 type Reaction = { emoji: string; users: { _id: string; name: string }[] };
 type Img = { url: string; width: number | null; height: number | null };
@@ -63,7 +65,15 @@ type Reader = { user: string; name: string; avatar: string; at: string };
 type PinRow = { _id: string; body: string; senderName: string; pinnedBy: string; pinnedAt: string };
 type LinkInfo = Record<string, { company: string; jobTitle: string }>;
 type Thread = {
-  conversation: { _id: string; kind: "team" | "direct" | "reports"; name: string; other: ChatPerson | null; pinned: PinRow[] };
+  conversation: {
+    _id: string;
+    kind: "team" | "direct" | "group" | "reports";
+    name: string;
+    other: ChatPerson | null;
+    pinned: PinRow[];
+    /** A group's members (empty for the other kinds). */
+    members: GroupMember[];
+  };
   messages: Msg[];
   hasMore: boolean;
   now: string;
@@ -112,6 +122,7 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
   const [searching, setSearching] = useState(false);
   const [posting, setPosting] = useState(false);
   const [forwarding, setForwarding] = useState<Msg | null>(null);
+  const [groupOpen, setGroupOpen] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -178,8 +189,9 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
           // Read markers, typing, pins and link details: only re-render when something changed.
           setThread((x) => {
             if (!x) return x;
-            const next = { ...x, reads: t.reads, typing: t.typing, conversation: { ...x.conversation, pinned: t.conversation.pinned }, links: { ...x.links, ...t.links } };
-            const key = (v: Thread) => JSON.stringify([v.reads, v.typing, v.conversation.pinned, v.links]);
+            const conversation = { ...x.conversation, pinned: t.conversation.pinned, name: t.conversation.name, members: t.conversation.members };
+            const next = { ...x, reads: t.reads, typing: t.typing, conversation, links: { ...x.links, ...t.links } };
+            const key = (v: Thread) => JSON.stringify([v.reads, v.typing, v.conversation, v.links]);
             return key(next) === key(x) ? x : next;
           });
           if (fromOthers) {
@@ -335,13 +347,24 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
     }
   }
 
+  /** Reloads the conversation's details (group name and members) after a change, and the list. */
+  async function refreshConversation() {
+    try {
+      const t = await api<Thread>(`/api/chat/${id}?after=${encodeURIComponent(new Date().toISOString())}`);
+      setThread((x) => (x ? { ...x, conversation: { ...x.conversation, name: t.conversation.name, members: t.conversation.members } } : x));
+    } catch {
+      /* the next poll catches up */
+    }
+    onRead();
+  }
+
   async function pin(m: Msg | PinRow, pinned: boolean) {
     try {
       await api(`/api/chat/${id}/pin`, { method: "POST", json: { messageId: m._id, pinned } });
       const t = await api<Thread>(`/api/chat/${id}?after=${encodeURIComponent(new Date().toISOString())}`);
       setThread((x) => (x ? { ...x, conversation: { ...x.conversation, pinned: t.conversation.pinned } } : x));
       setPinIdx(0);
-      toast.success(pinned ? "Pinned to the top of the team chat" : "Unpinned");
+      toast.success(pinned ? "Pinned to the top of the chat" : "Unpinned");
     } catch (e) {
       toast.error(pinned ? "Couldn't pin the message" : "Couldn't unpin the message", (e as Error).message);
     }
@@ -403,16 +426,18 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
   // @mentions (team chat): people matching what's typed after "@", plus everyone with the admin role.
   const c = thread?.conversation;
   const mentionOptions = useMemo(() => {
-    if (!mention || c?.kind !== "team") return [];
+    if (!mention || (c?.kind !== "team" && c?.kind !== "group")) return [];
     const q = mention.query.toLowerCase();
+    // In a group only its members can be mentioned.
+    const inGroup = c.kind === "group" ? new Set(c.members.map((m) => m._id)) : null;
     const list: { id: string; name: string; hint: string; avatar?: string }[] = people
-      .filter((p) => p._id !== me && p.name.toLowerCase().split(/\s+/).some((w) => w.startsWith(q)))
+      .filter((p) => p._id !== me && (!inGroup || inGroup.has(p._id)) && p.name.toLowerCase().split(/\s+/).some((w) => w.startsWith(q)))
       .sort((a, b) => a.name.localeCompare(b.name))
       .slice(0, 6)
       .map((p) => ({ id: p._id, name: p.name, hint: ROLE_LABEL[p.role] ?? p.role, avatar: p.avatar }));
     if ("admins".startsWith(q)) list.unshift({ id: "admins", name: "admins", hint: "Every admin" });
     return list;
-  }, [mention, people, me, c?.kind]);
+  }, [mention, people, me, c?.kind, c?.members]);
 
   function pickMention(o: { id: string; name: string }) {
     if (!mention) return;
@@ -432,7 +457,7 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
   function onDraftChange(value: string, caret: number) {
     setDraft(value);
     growInput();
-    const m = c?.kind === "team" ? /(?:^|\s)@([^\s@]{0,30})$/.exec(value.slice(0, caret)) : null;
+    const m = c?.kind === "team" || c?.kind === "group" ? /(?:^|\s)@([^\s@]{0,30})$/.exec(value.slice(0, caret)) : null;
     setMention(m ? { start: caret - m[1].length - 1, query: m[1] } : null);
     setMentionIdx(0);
     // "is typing" for the others, at most every few seconds.
@@ -484,7 +509,7 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
     if (m.body) items.push({ label: "Copy text", icon: Copy, onSelect: () => navigator.clipboard.writeText(m.body).then(() => toast.success("Copied")).catch(() => {}) });
     if (isAdmin) items.push({ label: "Forward", icon: Forward, onSelect: () => setForwarding(m) });
     if (mine && m.body && !m.forwarded && Date.now() - new Date(m.createdAt).getTime() < EDIT_WINDOW_MS) items.push({ label: "Edit", icon: Pencil, onSelect: () => startEdit(m) });
-    if (isAdmin && c?.kind === "team") {
+    if (isAdmin && (c?.kind === "team" || c?.kind === "group")) {
       const pinned = pins.some((p) => p._id === m._id);
       items.push({ label: pinned ? "Unpin" : "Pin to top", icon: pinned ? PinOff : Pin, onSelect: () => pin(m, !pinned) });
     }
@@ -522,6 +547,25 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
             <button className="btn btn-ghost btn-sm shrink-0" onClick={postReports} disabled={posting} title="Post every member's report now, covering the time since the last reports">
               {posting ? <Spinner className="size-3.5" /> : <RefreshCw />} <span className="hidden sm:inline">Post now</span>
             </button>
+          </>
+        ) : c?.kind === "group" ? (
+          <>
+            <GroupAvatar />
+            <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setGroupOpen(true)} title={isAdmin ? "Manage the group" : "See the members"}>
+              <span className="block truncate text-sm font-semibold text-slate-900">{c.name}</span>
+              {typing.length ? (
+                <span className="block truncate text-xs font-medium text-indigo-600">{typing.length === 1 ? `${typing[0].name} is typing…` : "Several people are typing…"}</span>
+              ) : (
+                <span className="block truncate text-xs text-slate-500 hover:underline">
+                  {c.members.length} members · {c.members.map((m) => (m._id === me ? "You" : m.name.split(" ")[0])).join(", ")}
+                </span>
+              )}
+            </button>
+            {isAdmin && (
+              <button className="btn btn-ghost btn-sm shrink-0" onClick={() => setGroupOpen(true)} title="Rename, add or remove members">
+                <UserPlus /> <span className="hidden sm:inline">Members</span>
+              </button>
+            )}
           </>
         ) : c?.other ? (
           <>
@@ -591,7 +635,9 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
               <div className="py-10 text-center text-sm text-slate-500">
                 {c?.kind === "team"
                   ? "No messages yet. Say hello to the team."
-                  : c?.kind === "reports"
+                  : c?.kind === "group"
+                    ? `No messages yet. Say hello to ${c.name}.`
+                    : c?.kind === "reports"
                     ? "No reports yet. Each member's report is posted here every evening (or click Post now)."
                     : `No messages yet. Say hello to ${c?.other?.name ?? "them"}.`}
 </div>
@@ -838,7 +884,7 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
             className="input max-h-40 min-h-10 flex-1 resize-none py-2"
             rows={1}
             placeholder={
-              c?.kind === "team" ? "Message the team · @ to mention" : c?.kind === "reports" ? "Comment for the other admins" : c?.other ? `Message ${c.other.name}` : "Write a message"
+              c?.kind === "team" ? "Message the team · @ to mention" : c?.kind === "group" ? `Message ${c.name} · @ to mention` : c?.kind === "reports" ? "Comment for the other admins" : c?.other ? `Message ${c.other.name}` : "Write a message"
             }
             value={draft}
             maxLength={MAX_MESSAGE}
@@ -901,6 +947,22 @@ export function ThreadView({ id, me, onRead, onBack }: { id: string; me: string;
       </form>
 
       {forwarding && <ForwardDialog convId={id} message={forwarding} me={me} onClose={() => setForwarding(null)} />}
+      {groupOpen && c?.kind === "group" && (
+        <GroupDialog
+          convId={id}
+          name={c.name}
+          members={c.members}
+          me={me}
+          isAdmin={isAdmin}
+          onClose={() => setGroupOpen(false)}
+          onChanged={refreshConversation}
+          onDeleted={() => {
+            setGroupOpen(false);
+            onRead();
+            onBack();
+          }}
+        />
+      )}
       {viewer && <Lightbox slides={viewer.slides} start={viewer.start} onClose={() => setViewer(null)} />}
     </>
   );
@@ -1089,6 +1151,8 @@ function ForwardDialog({ convId, message, me, onClose }: { convId: string; messa
                   <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
                     <ClipboardList className="size-3.5" />
                   </span>
+                ) : o.kind === "group" ? (
+                  <GroupAvatar size={28} />
                 ) : (
                   <PresenceAvatar userId={o.person?._id ?? ""} avatar={o.person?.avatar} name={o.name} size={28} />
                 )}

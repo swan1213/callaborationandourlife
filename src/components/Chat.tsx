@@ -11,8 +11,10 @@ import { useToast } from "./Alerts";
 export type ChatPerson = { _id: string; name: string; avatar: string; role: string };
 export type ChatConversation = {
   _id: string;
-  kind: "team" | "direct" | "reports";
+  kind: "team" | "direct" | "group" | "reports";
   name: string;
+  /** Members of a group (0 for the other kinds). */
+  memberCount: number;
   other: ChatPerson | null;
   lastMessage: { body: string; senderName: string; mine: boolean; at: string } | null;
   unread: number;
