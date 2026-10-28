@@ -37,6 +37,9 @@ function assertPublicUrl(raw: string): URL {
 }
 
 function htmlToText(html: string) {
+  // HTML escaped once more ("&lt;p&gt;…", seen in Phenom's JSON-LD, e.g. jobs.abbott): unescape it first, or the tags
+  // come out as text.
+  if (!/<[a-z][^>]*>/i.test(html) && /&lt;\/?[a-z][^&]*&gt;/i.test(html)) html = cheerio.load(`<div>${html}</div>`).root().text();
   const $ = cheerio.load(`<div>${html}</div>`);
   $("br").replaceWith("\n");
   $("li").each((_, el) => {

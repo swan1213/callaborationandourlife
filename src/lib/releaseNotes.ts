@@ -25,6 +25,17 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-28-3",
+    date: "2026-10-28",
+    title: "Job descriptions without HTML code",
+    changes: [
+      {
+        text: "Some career sites (e.g. jobs.abbott) gave us their job description as HTML code, so it showed tags like <p> and <span style=…>. New ones are read properly, and ones already saved now show as normal text with headings and bullets.",
+        roles: APPS,
+      },
+    ],
+  },
+  {
     id: "2026-10-28-2",
     date: "2026-10-28",
     title: "Easier-to-read job descriptions",

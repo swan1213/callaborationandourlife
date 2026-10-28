@@ -5,12 +5,33 @@
  * ones, and runs of blank lines collapse.
  */
 export function tidyJobText(text: string) {
-  return (text || "")
+  return fromHtml(text || "")
     .replace(/\r\n?/g, "\n")
     .replace(/\\r\\n|\\n|\\r/g, "\n")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n\s*\n\s*\n+/g, "\n\n")
     .trim();
+}
+
+const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", rsquo: "’", lsquo: "‘", rdquo: "”", ldquo: "“", ndash: "–", mdash: "—", hellip: "…", bull: "•" };
+
+/**
+ * Text saved as HTML markup (a posting whose data held escaped HTML, scraped before scrape.ts unescaped it): tags
+ * become line breaks and bullets, entities become characters. Plain text is returned as is.
+ */
+function fromHtml(text: string) {
+  if ((text.match(/<\/?(?:p|div|span|br|li|ul|ol|b|strong|em|i|u|a|h[1-6])\b[^>]*>/gi) ?? []).length < 3) return text;
+  return text
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<li\b[^>]*>/gi, "\n• ")
+    .replace(/<\/(?:p|div|li|ul|ol|h[1-6]|tr)>/gi, "\n")
+    .replace(/<(?:p|div|ul|ol|h[1-6]|tr)\b[^>]*>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (m, e: string) =>
+      e[0] === "#" ? String.fromCodePoint(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10)) : (ENTITIES[e.toLowerCase()] ?? m),
+    )
+    .replace(/[ \t ]+/g, " ")
+    .replace(/\n /g, "\n");
 }
 
 export type JobBlock =
