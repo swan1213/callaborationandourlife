@@ -9,7 +9,7 @@ import { displayUrl } from "./links";
 import { resumeHeadline } from "./headline";
 import { atsSpec, type AtsSpec } from "./designs";
 import { findSalary } from "./salary";
-import { tidyJobText } from "./jobText";
+import { jobBlocks } from "./jobText";
 
 export type AppDocSource = {
   _id: unknown;
@@ -191,20 +191,14 @@ export async function jobDescriptionDocx(app: AppDocSource): Promise<Buffer> {
     ...meta.map(([k, v]) => new Paragraph({ children: [t(`${k}: `, true), t(v)] })),
     ...heading("Job Description"),
   ];
-  // Short lines without terminal punctuation are treated as sub-headings; "•"/"-" lines as bullets.
-  for (const raw of tidyJobText(app.jobDescription || "").split("\n")) {
-    const line = raw.trim();
-    if (!line) continue;
-    const isB = /^[•\-*·]\s+/.test(line);
-    const text = line.replace(/^[•\-*·]\s+/, "");
-    const isHeading = !isB && text.length <= 60 && !/[.,;:]$/.test(text) && /^[A-Z]/.test(text) && text.split(" ").length <= 8;
-    children.push(
-      isB
-        ? bullet(text)
-        : isHeading
-          ? new Paragraph({ spacing: { before: 200, after: 60 }, children: [t(text, true, 22)] })
-          : new Paragraph({ spacing: { after: 100 }, children: [t(text, false, 20)] })
-    );
+  // Laid out like the Job description tab (lib/jobText.ts): headings, bullet lists and paragraphs.
+  for (const b of jobBlocks(app.jobDescription || "")) {
+    if (b.kind === "title") {
+      children.push(new Paragraph({ spacing: { after: 60 }, children: [t(b.text, true, 22)] }));
+      if (b.facts.length) children.push(new Paragraph({ spacing: { after: 120 }, children: [t(b.facts.join("  ·  "), false, 20)] }));
+    } else if (b.kind === "heading") children.push(new Paragraph({ spacing: { before: 200, after: 60 }, children: [t(b.text, true, 22)] }));
+    else if (b.kind === "bullets") children.push(...b.items.map((it) => bullet(it)));
+    else children.push(new Paragraph({ spacing: { after: 100 }, children: [t(b.text, false, 20)] }));
   }
   return Packer.toBuffer(docxShell(children, 1080));
 }

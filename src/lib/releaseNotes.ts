@@ -25,6 +25,18 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-28-2",
+    date: "2026-10-28",
+    title: "Easier-to-read job descriptions",
+    changes: [
+      {
+        text: "The Job description tab is now laid out: the title with its details (place, job type, pay) as small tags, then section headings like Responsibilities and Requirements, with their points as bullet lists. Job board extras like \"Find out how your skills align…\" are left out.",
+        roles: APPS,
+      },
+      { text: "The downloaded job description file uses the same layout.", roles: APPS },
+    ],
+  },
+  {
     id: "2026-10-28",
     date: "2026-10-28",
     title: "Chat keeps your line breaks",
