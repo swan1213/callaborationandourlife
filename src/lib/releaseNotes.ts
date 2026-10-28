@@ -25,6 +25,17 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-28-5",
+    date: "2026-10-28",
+    title: "A tidier Chat question box",
+    changes: [
+      {
+        text: "The Chat tab's question box is redesigned: one box with your attachments on top, a box that grows as you type, and the paperclip, Start over and Ask buttons along its bottom edge.",
+        roles: APPS,
+      },
+    ],
+  },
+  {
     id: "2026-10-28-4",
     date: "2026-10-28",
     title: "Attach screenshots and files in Chat",

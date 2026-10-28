@@ -67,6 +67,7 @@ export default function InterviewChat({ appId }: { appId: string }) {
   const [viewer, setViewer] = useState<{ slides: Slide[]; start: number } | null>(null);
   const list = useRef<HTMLDivElement>(null);
   const picker = useRef<HTMLInputElement>(null);
+  const box = useRef<HTMLTextAreaElement>(null);
   const abort = useRef<AbortController | null>(null);
   const nextId = useRef(1);
 
@@ -182,6 +183,14 @@ export default function InterviewChat({ appId }: { appId: string }) {
     [appId, pending.length]
   );
 
+  // The question box grows with its text (up to its max height, then scrolls).
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft]);
+
   // Leaving the tab stops an answer that is still streaming.
   useEffect(() => () => abort.current?.abort(), []);
 
@@ -282,7 +291,9 @@ export default function InterviewChat({ appId }: { appId: string }) {
       </div>
 
       <form
-        className={`mt-3 rounded-lg ${dragging ? "outline-2 outline-offset-4 outline-indigo-400 outline-dashed" : ""}`}
+        className={`mt-3 rounded-xl border bg-[var(--surface)] shadow-xs transition-[border-color,box-shadow] duration-150 focus-within:border-indigo-500 focus-within:ring-[3px] focus-within:ring-indigo-500/15 ${
+          dragging ? "border-dashed border-indigo-500 bg-indigo-50/60" : "border-[var(--line-strong)]"
+        }`}
         onSubmit={(e) => {
           e.preventDefault();
           send();
@@ -303,21 +314,21 @@ export default function InterviewChat({ appId }: { appId: string }) {
         }}
       >
         {pending.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 px-3 pt-3">
             {pending.map((a) => (
-              <div key={a.id} className="relative flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-1.5 pr-7 text-xs text-slate-600">
+              <div key={a.id} className="group/att relative flex h-12 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-1 pr-7 pl-1 text-xs text-slate-700">
                 {a.kind === "image" ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={a.url} alt="" className="size-10 rounded object-cover" />
-                ) : a.loading ? (
-                  <Spinner />
+                  <img src={a.url} alt="" className="size-10 rounded-md object-cover" />
                 ) : (
-                  <FileText className="size-4 shrink-0 text-slate-500" />
+                  <span className="flex size-10 items-center justify-center rounded-md bg-indigo-50 text-indigo-600">
+                    {a.loading ? <Spinner /> : <FileText className="size-4" />}
+                  </span>
                 )}
-                <span className="max-w-40 truncate">{a.kind === "file" && a.loading ? `Reading ${a.name}…` : a.name}</span>
+                <span className="max-w-40 truncate font-medium">{a.kind === "file" && a.loading ? `Reading ${a.name}…` : a.name}</span>
                 <button
                   type="button"
-                  className="absolute top-1 right-1 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  className="absolute top-1 right-1 rounded-md p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
                   onClick={() => setPending((p) => p.filter((x) => x.id !== a.id))}
                   aria-label={`Remove ${a.name}`}
                 >
@@ -327,7 +338,30 @@ export default function InterviewChat({ appId }: { appId: string }) {
             ))}
           </div>
         )}
-        <div className="flex items-end gap-2">
+        <textarea
+          ref={box}
+          className="block max-h-56 min-h-12 w-full resize-none bg-transparent px-3.5 pt-3 pb-1 text-base leading-relaxed text-slate-800 outline-none placeholder:text-slate-400 sm:text-sm"
+          rows={1}
+          placeholder={dragging ? "Drop to attach…" : "Ask an interview question…"}
+          aria-label="Interview question"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onPaste={(e) => {
+            // A copied screenshot or file; copied text (even with a picture, as from Word) pastes as text.
+            const files = [...e.clipboardData.files];
+            if (!files.length || e.clipboardData.getData("text/plain")) return;
+            e.preventDefault();
+            attach(files);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              send();
+            }
+          }}
+          maxLength={4000}
+        />
+        <div className="flex items-center gap-1 px-2 pb-2">
           <input
             ref={picker}
             type="file"
@@ -341,45 +375,32 @@ export default function InterviewChat({ appId }: { appId: string }) {
           />
           <button
             type="button"
-            className="btn btn-secondary px-2.5"
+            className="inline-flex size-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
             disabled={busy || pending.length >= MAX_ATTACHMENTS}
             onClick={() => picker.current?.click()}
-            title="Attach an image or file (PDF, Word, text)"
+            title="Attach screenshots or files (images, PDF, Word, text)"
             aria-label="Attach an image or file"
           >
             <Paperclip className="size-4" />
           </button>
-          <textarea
-            className="input min-h-11 flex-1 resize-y"
-            rows={2}
-            placeholder="Ask a question… (Enter sends, Shift+Enter new line; paste or drop screenshots and files)"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onPaste={(e) => {
-              // A copied screenshot or file; copied text (even with a picture, as from Word) pastes as text.
-              const files = [...e.clipboardData.files];
-              if (!files.length || e.clipboardData.getData("text/plain")) return;
-              e.preventDefault();
-              attach(files);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            maxLength={4000}
-          />
-          <button type="submit" className="btn btn-primary" disabled={!canSend}>
-            <Send className="size-4" /> Ask
-          </button>
+          <span className="hidden truncate text-xs text-slate-400 sm:inline">
+            <span className="kbd">Enter</span> to send · <span className="kbd">Shift</span>+<span className="kbd">Enter</span> new line · paste or drop files
+          </span>
+          <div className="ml-auto flex items-center gap-1">
+            <button
+              type="button"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 disabled:pointer-events-none disabled:opacity-0"
+              onClick={restart}
+              disabled={busy || !turns.length}
+            >
+              <RotateCcw className="size-3.5" /> Start over
+            </button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={!canSend} aria-label="Ask">
+              <Send className="size-3.5" /> Ask
+            </button>
+          </div>
         </div>
       </form>
-      <div className="mt-2 flex justify-end">
-        <button type="button" className="btn btn-ghost btn-sm text-xs" onClick={restart} disabled={busy || !turns.length}>
-          <RotateCcw className="size-3.5" /> Start over
-        </button>
-      </div>
       {viewer && <Lightbox slides={viewer.slides} start={viewer.start} onClose={() => setViewer(null)} />}
     </div>
   );
