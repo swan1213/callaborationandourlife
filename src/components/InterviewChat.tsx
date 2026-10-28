@@ -33,7 +33,12 @@ export default function InterviewChat({ appId }: { appId: string }) {
 
   const ask = useCallback(
     async (question: string, history: Turn[]) => {
-      const q = question.trim();
+      // Keep the line breaks of a pasted form question, but not its empty lines.
+      const q = question
+        .replace(/\r\n?/g, "\n")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{2,}/g, "\n")
+        .trim();
       if (!q) return;
       const next: Turn[] = [...history, { role: "user", content: q }];
       setTurns(next);
@@ -115,7 +120,7 @@ export default function InterviewChat({ appId }: { appId: string }) {
         {turns.map((t, i) =>
           t.role === "user" ? (
             <div key={i} className="flex justify-end">
-              <div className="max-w-[85%] rounded-2xl rounded-br-md bg-indigo-600 px-3.5 py-2 text-sm text-white">{t.content}</div>
+              <div className="max-w-[85%] rounded-2xl rounded-br-md bg-indigo-600 px-3.5 py-2 text-sm break-words whitespace-pre-wrap text-white">{t.content}</div>
             </div>
           ) : (
             <div key={i} className="group">

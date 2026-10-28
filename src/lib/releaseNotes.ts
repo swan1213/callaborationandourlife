@@ -25,6 +25,17 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-28",
+    date: "2026-10-28",
+    title: "Chat keeps your line breaks",
+    changes: [
+      {
+        text: "In the Chat tab, a question you paste over several lines (like an application form's list of options) now shows line by line instead of run together on one line.",
+        roles: APPS,
+      },
+    ],
+  },
+  {
     id: "2026-10-27-5",
     date: "2026-10-27",
     title: "Cleaner job descriptions",
