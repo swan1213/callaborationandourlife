@@ -4,11 +4,13 @@ import { Profile } from "@/lib/models/Profile";
 import { candidateProfileText, humanize, type ResumeContent } from "@/lib/generate";
 import { recordKeyResult, resolveOpenAI, samplingFor } from "@/lib/openaiKeys";
 import { oid } from "@/lib/query";
+import type OpenAI from "openai";
 
 export const maxDuration = 60;
 
 type Ctx = { params: Promise<{ id: string }> };
-type Turn = { role: "user" | "assistant"; content: string };
+type Turn = { role: "user" | "assistant"; content: string; images: string[]; files: { name: string; text: string }[] };
+type Message = OpenAI.Chat.ChatCompletionMessageParam;
 
 /** The opening question the chat starts with. */
 const FIRST_QUESTION = "Tell me about yourself.";
@@ -17,12 +19,21 @@ const MAX_TURNS = 12;
 const MAX_CHARS = 4000;
 /** Words kept back while streaming: the longest phrase humanize() replaces is eight words. */
 const HOLD_WORDS = 8;
+/** Attachments: images as data URLs (the page shrinks them), the newest few only; document text, newest first. */
+const MAX_IMAGES = 4;
+const MAX_IMAGE_CHARS = 2_000_000;
+const IMAGE_URL = /^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+const MAX_FILES = 3;
+const MAX_FILE_CHARS = 12000;
+const MAX_ALL_FILE_CHARS = 30000;
 
 /**
- * POST { messages: [{ role: "user" | "assistant", content }] } → the answer as streamed plain text
+ * POST { messages: [{ role: "user" | "assistant", content, images?: [dataUrl], files?: [{ name, text }] }] } → the
+ * answer as streamed plain text
  * Interview practice chat on an application (components/InterviewChat.tsx): the AI answers the interviewer's latest
- * question as the candidate, from this application's resume, job description and the profile. Nothing is stored;
- * the page sends the conversation so far. No messages = the opening question ("Tell me about yourself.").
+ * question as the candidate, from this application's resume, job description and the profile. A question can carry
+ * images (a screenshot of a form or task) and documents (their text, read by ./attach). Nothing is stored; the page
+ * sends the conversation so far. No messages = the opening question ("Tell me about yourself.").
  */
 export const POST = handler(async (req: Request, { params }: Ctx) => {
   const user = await requireUser();
@@ -39,10 +50,46 @@ export const POST = handler(async (req: Request, { params }: Ctx) => {
   const turns: Turn[] = raw
     .slice(-MAX_TURNS)
     .map((m) => m as Partial<Turn>)
-    .filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim())
-    .map((m) => ({ role: m.role!, content: m.content!.trim().slice(0, MAX_CHARS) }));
-  if (!turns.length) turns.push({ role: "user", content: FIRST_QUESTION });
+    .map((m) => ({
+      role: m.role!,
+      content: typeof m.content === "string" ? m.content.trim().slice(0, MAX_CHARS) : "",
+      images: m.role === "user" && Array.isArray(m.images) ? m.images.filter((u) => typeof u === "string" && u.length <= MAX_IMAGE_CHARS && IMAGE_URL.test(u)) : [],
+      files:
+        m.role === "user" && Array.isArray(m.files)
+          ? m.files
+              .filter((f) => f && typeof f.name === "string" && typeof f.text === "string" && f.text.trim())
+              .slice(0, MAX_FILES)
+              .map((f) => ({ name: f.name.slice(0, 120), text: f.text.slice(0, MAX_FILE_CHARS) }))
+          : [],
+    }))
+    .filter((m) => (m.role === "user" || m.role === "assistant") && (m.content || m.images.length || m.files.length));
+  if (!turns.length) turns.push({ role: "user", content: FIRST_QUESTION, images: [], files: [] });
   if (turns[turns.length - 1].role !== "user") throw new HttpError(400, "Ask a question first");
+  // Only the newest attachments go to the model: older images and documents are named instead.
+  let images = MAX_IMAGES;
+  let fileChars = MAX_ALL_FILE_CHARS;
+  const messages: Message[] = turns
+    .slice()
+    .reverse()
+    .map((t): Message => {
+      if (t.role === "assistant") return { role: "assistant", content: t.content };
+      const docs = t.files.map((f) => {
+        const keep = Math.max(0, Math.min(f.text.length, fileChars));
+        fileChars -= keep;
+        return keep ? `ATTACHED FILE "${f.name}":\n${f.text.slice(0, keep)}` : `(Attached earlier: "${f.name}")`;
+      });
+      const shown = t.images.slice(0, Math.max(0, images));
+      images -= shown.length;
+      const dropped = t.images.length - shown.length;
+      const text = [
+        t.content || (t.images.length || t.files.length ? "Please look at what I attached." : ""),
+        ...docs,
+        ...(dropped ? [`(${dropped} image${dropped > 1 ? "s" : ""} shared earlier)`] : []),
+      ].join("\n\n");
+      if (!shown.length) return { role: "user", content: text };
+      return { role: "user", content: [{ type: "text", text }, ...shown.map((url) => ({ type: "image_url" as const, image_url: { url } }))] };
+    })
+    .reverse();
 
   const openai = await resolveOpenAI(profile);
   let stream;
@@ -52,11 +99,14 @@ export const POST = handler(async (req: Request, { params }: Ctx) => {
       // Spoken answers need little reasoning.
       ...samplingFor(openai.model, 0.7),
       stream: true,
-      messages: [{ role: "system", content: systemPrompt(app, profile) }, ...turns],
+      messages: [{ role: "system", content: systemPrompt(app, profile) }, ...messages],
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "OpenAI request failed";
     await recordKeyResult(openai.apiKeyId, msg);
+    // A model without vision refuses images: say what to do instead of the raw error.
+    if (turns.some((t) => t.images.length) && /image|vision|multimodal|content type/i.test(msg))
+      throw new HttpError(400, `The AI model "${openai.model}" can't read images. Paste the text instead, or ask an administrator for a model that reads images (e.g. gpt-4.1-mini).`);
     throw new HttpError(502, `OpenAI error: ${msg}`);
   }
 
@@ -142,6 +192,15 @@ HOW IT SHOULD SOUND
 - Only use facts from your resume and background below: employers, titles, dates, technologies and numbers. Never
   invent a company, project, metric or skill. If you haven't done something, say so and explain the closest thing you
   have done and how you'd pick it up.
+
+ATTACHMENTS
+- The interviewer may attach images (a screenshot of an application form, a coding task, a diagram, a job post) or files
+  (their text is given as ATTACHED FILE). Read them closely and answer what they ask, as the candidate, from your own
+  facts. Read text in images exactly; if part is unreadable, say which part.
+- Form or screening questions (in a screenshot or a pasted list): answer each one in order, short and ready to type
+  into the form, one per line ("Experience with: NPM, Cypress, esbuild. Not Bun, Tomcat or Maven yet."). Pick only
+  options your resume backs up. For salary, give a range that fits the role and the posting's pay if it states one.
+- Anything else (a task, a design, a document to discuss): talk it through the way you'd answer out loud.
 
 WRITTEN VS SPOKEN (the second one is how you talk; it's only a style example, not your facts)
 Written: "I led the design and implementation of a reusable framework that standardized how our product teams built

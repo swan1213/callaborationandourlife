@@ -4,9 +4,8 @@ import { normalizeUrl, URL_FIELDS } from "./links";
 
 export const MAX_RESUME_BYTES = 4 * 1024 * 1024; // stays under Vercel's 4.5 MB request limit
 
-/** Plain text from an uploaded PDF, DOCX or TXT resume. */
-export async function resumeFileToText(file: File): Promise<string> {
-  if (file.size > MAX_RESUME_BYTES) throw new HttpError(413, "Resume file must be 4 MB or smaller");
+/** Plain text from a PDF, DOCX or text file (TXT, MD, CSV, JSON); null for any other kind of file. */
+export async function documentToText(file: File): Promise<string | null> {
   const name = file.name.toLowerCase();
   const buf = new Uint8Array(await file.arrayBuffer());
   if (name.endsWith(".pdf") || file.type === "application/pdf") {
@@ -20,8 +19,16 @@ export async function resumeFileToText(file: File): Promise<string> {
     const { value } = await mammoth.extractRawText({ buffer: Buffer.from(buf) });
     return value;
   }
-  if (name.endsWith(".txt") || file.type.startsWith("text/")) return new TextDecoder().decode(buf);
-  throw new HttpError(415, "Upload a PDF, DOCX or TXT resume");
+  if (/\.(txt|md|csv|json)$/.test(name) || file.type.startsWith("text/")) return new TextDecoder().decode(buf);
+  return null;
+}
+
+/** Plain text from an uploaded PDF, DOCX or TXT resume. */
+export async function resumeFileToText(file: File): Promise<string> {
+  if (file.size > MAX_RESUME_BYTES) throw new HttpError(413, "Resume file must be 4 MB or smaller");
+  const text = await documentToText(file);
+  if (text === null) throw new HttpError(415, "Upload a PDF, DOCX or TXT resume");
+  return text;
 }
 
 const SYSTEM = `You extract structured candidate data from a resume for an HR system.

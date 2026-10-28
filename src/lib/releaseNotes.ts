@@ -25,6 +25,21 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-28-4",
+    date: "2026-10-28",
+    title: "Attach screenshots and files in Chat",
+    changes: [
+      {
+        text: "The Chat tab of an application now takes images and files with a question: click the paperclip, paste a screenshot (Ctrl+V) or drag it in. Up to 4 per question; images, PDF, Word (.docx) and text files.",
+        roles: APPS,
+      },
+      {
+        text: "Useful for an application form's screening questions: attach a screenshot and the answers come back one per line, ready to type in.",
+        roles: APPS,
+      },
+    ],
+  },
+  {
     id: "2026-10-28-3",
     date: "2026-10-28",
     title: "Job descriptions without HTML code",
