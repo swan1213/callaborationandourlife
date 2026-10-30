@@ -198,11 +198,13 @@ const has = (text: string, term: string): boolean => {
 export const mentionsKeyword = has;
 const softHas = (text: string, phrase: string) => text.toLowerCase().includes(phrase);
 const wordCount = (s: string) => (s.match(/\b[\w'’+#.-]+\b/g) ?? []).length;
+/** Level words: the resume keeps the candidate's real level, so a posting's "Staff" or "Lead" isn't expected in it. */
+const LEVEL = new Set(["sr", "jr", "i", "ii", "iii", "iv", "v", "senior", "junior", "staff", "lead", "principal", "distinguished", "mid", "entry", "intern", "head", "chief", "associate", "level"]);
 const titleWords = (title: string) =>
   roleOnly(title)
     .toLowerCase()
     .split(/[^a-z0-9+#.]+/)
-    .filter((w) => w.length > 1 && !STOP.has(w) && !["sr", "jr", "i", "ii", "iii", "iv"].includes(w));
+    .filter((w) => w.length > 1 && !STOP.has(w) && !LEVEL.has(w));
 
 /** All resume text in reading order. */
 export function resumeText(r: ResumeContent) {
@@ -254,7 +256,7 @@ export function scoreResume(r: ResumeContent, jd: string, jobTitle: string): Mat
   const quantified = bullets.filter((b) => /\d/.test(b)).length;
   const words = wordCount(text);
   const checks: MatchCheck[] = [
-    { label: "Job title appears in the headline, summary or a role", ok: (titleRatio ?? 1) >= 0.67 },
+    { label: "Job title's key words appear in the headline, summary or a role", ok: (titleRatio ?? 1) >= 0.67 },
     { label: "Covers the required skills", ok: !c.missing.some((k) => k.required) },
     { label: "Has a professional summary", ok: !!r.summary?.trim() },
     { label: "Half or more of the bullets show a number or result", ok: bullets.length > 0 && quantified / bullets.length >= 0.5 },

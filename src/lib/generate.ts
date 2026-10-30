@@ -267,8 +267,9 @@ COMPANY: [Exact company name from the job description]
 ROLE: [Exact job title from the job description]
 HEADLINE: [The professional headline under the candidate's name. Write it yourself: the candidate's real level and
 discipline from their background, plus one or two focus areas this job cares about, e.g. "Senior Software Engineer |
-Optical & AI Networking". Do NOT copy the posting's job title word for word, never a title or seniority the candidate
-hasn't held, no company names, at most 8 words.]
+Optical & AI Networking". Use the key words of the posting's job title other than its level (for "Staff Software
+Engineer, AI Evaluation": "AI Evaluation") wherever the candidate's work backs them up. Do NOT copy the posting's job
+title word for word, never a title or seniority the candidate hasn't held, no company names, at most 8 words.]
 
 Then a blank line, then the resume content the instructions above ask for. Do not repeat the candidate's name or
 contact details (the application adds the header). Start every section title on its own line with "# ", and keep
@@ -569,7 +570,8 @@ Make these changes:
   person's resume never matches every line of a posting, so leaving several of them out is expected and fine.
 - titleLine: keep the current one unless it is missing. It is the candidate's own headline (their real level and
   discipline plus a focus area of this job), never a copy of the posting's job title ("${job.title || "see the job description"}").
-  The summary's first sentence ties the candidate to this role and names the posting's most important skills.
+  The summary's first sentence ties the candidate to this role in the words of its job title (all but its level, which
+  stays the candidate's own) and names the posting's most important skills.
 ${quantified < 0.6 ? "- At least 60% of the experience bullets show a concrete number (percent, time saved, scale, users, requests, cost).\n" : ""}- Cover letter: mention ${letterMissing.length ? letterMissing.slice(0, 6).join(", ") : "the posting's top skills"}${/\d/.test(coverLetter) ? "" : " and one concrete result with a number"}; keep its length, greeting, sign-off and its plain, conversational
   voice (contractions, everyday words): work each keyword into a real sentence about the candidate's work, never a list,
   and don't make it more formal.

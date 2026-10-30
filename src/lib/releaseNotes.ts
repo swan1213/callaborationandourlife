@@ -25,6 +25,21 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-30",
+    date: "2026-10-30",
+    title: "Fairer job title check in Job match",
+    changes: [
+      {
+        text: "Job match no longer takes points off because the resume doesn't say \"Staff\", \"Lead\" or \"Principal\" like the posting: the resume keeps your real level. It still checks the role's key words (e.g. \"Machine Learning\", \"Data\").",
+        roles: APPS,
+      },
+      {
+        text: "New resumes use the job title's key words in the headline and the summary's first sentence, still with your own level, never a copy of the title.",
+        roles: APPS,
+      },
+    ],
+  },
+  {
     id: "2026-10-29",
     date: "2026-10-29",
     title: "Delete from the application page",
