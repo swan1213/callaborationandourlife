@@ -9,6 +9,7 @@ import { companyKey } from "@/lib/company";
 import { tidyJobText } from "@/lib/jobText";
 import { estimateCost, recordKeyResult, resolveOpenAI } from "@/lib/openaiKeys";
 import { oid } from "@/lib/query";
+import { retryOnDrop } from "@/lib/db";
 
 export const maxDuration = 60;
 
@@ -84,6 +85,6 @@ export const POST = handler(async (_req: Request, { params }: Ctx) => {
       costUsd: (prev.costUsd ?? 0) + estimateCost(openai, result.usage.promptTokens, result.usage.completionTokens),
     },
   });
-  await app.save();
+  await retryOnDrop(() => app.save());
   return NextResponse.json({ id: String(app._id), company: app.company, jobTitle: app.jobTitle });
 });

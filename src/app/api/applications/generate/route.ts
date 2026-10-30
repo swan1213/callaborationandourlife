@@ -13,6 +13,7 @@ import { findDuplicate } from "@/lib/duplicates";
 import { urlKey } from "@/lib/links";
 import { markPostingRead } from "@/lib/postingReads";
 import { manualLimitMessage, manualQueue } from "@/lib/manualQueue";
+import { retryOnDrop } from "@/lib/db";
 
 export const maxDuration = 60;
 
@@ -179,11 +180,13 @@ export const POST = handler(async (req: Request) => {
   let app;
   if (target) {
     target.set(fields);
-    app = await target.save();
+    // The documents are already paid for: a dropped connection gets one more try instead of losing them.
+    app = await retryOnDrop(() => target!.save());
     // It becomes a bid now: date it to the generation (daily report, quota month).
-    await Application.collection.updateOne({ _id: app._id }, { $set: { createdAt: new Date() } });
+    await retryOnDrop(() => Application.collection.updateOne({ _id: target!._id }, { $set: { createdAt: new Date() } }));
   } else {
-    app = await Application.create({ user: user._id, profile: profile._id, profileLabel: profile.label, jobUrl, ...fields });
+    const doc = new Application({ user: user._id, profile: profile._id, profileLabel: profile.label, jobUrl, ...fields });
+    app = await retryOnDrop(() => doc.save());
   }
 
   if (jobUrl) await markPostingRead(user._id, jobUrl).catch(() => {});

@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { after, NextResponse } from "next/server";
 import type { Types } from "mongoose";
-import { connectDB } from "./db";
+import { connectDB, isConnectionError } from "./db";
 import { User, type UserDoc } from "./models/User";
 import { SESSION_COOKIE, verifySession, type Role } from "./session";
 import { canCallApi, governsApi } from "./pageAccess";
@@ -86,7 +86,11 @@ export function handler<A extends unknown[]>(fn: (...args: A) => Promise<Respons
     } catch (e) {
       error = e;
       if (e instanceof HttpError) res = NextResponse.json({ ...e.data, error: e.message }, { status: e.status });
-      else {
+      else if (isConnectionError(e)) {
+        // Raw driver/OpenSSL text means nothing to people; the request can simply be tried again.
+        console.error(e);
+        res = NextResponse.json({ error: "A connection dropped just now (database or network). Please try again in a moment." }, { status: 503 });
+      } else {
         console.error(e);
         res = NextResponse.json({ error: e instanceof Error ? e.message : "Server error" }, { status: 500 });
       }

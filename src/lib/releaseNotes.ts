@@ -25,6 +25,15 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-30-4",
+    date: "2026-10-30",
+    title: "Fewer lost generations on a dropped connection",
+    changes: [
+      { text: "If the database connection drops while a new resume is being saved, it's saved again automatically instead of being lost.", roles: APPS },
+      { text: "A dropped connection now shows a plain \"please try again\" message instead of technical SSL text." },
+    ],
+  },
+  {
     id: "2026-10-30-3",
     date: "2026-10-30",
     title: "Delete a job that couldn't be read",
