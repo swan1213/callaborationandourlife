@@ -25,6 +25,21 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-30-2",
+    date: "2026-10-30",
+    title: "Regenerate an application",
+    changes: [
+      {
+        text: "A generated application's page has a Regenerate button at the top: it writes a new resume and cover letter for the same job and replaces the current ones. It's the same application (no new bid, no quota used); notes and screenshots stay.",
+        roles: ["admin", "user", "bidder"],
+      },
+      {
+        text: "The posting is read again from its link first, so older ones saved with messy text get a clean description too. Submitted applications can't be regenerated.",
+        roles: ["admin", "user", "bidder"],
+      },
+    ],
+  },
+  {
     id: "2026-10-30",
     date: "2026-10-30",
     title: "Fairer job title check in Job match",

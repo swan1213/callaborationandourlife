@@ -149,6 +149,7 @@ export const HELP_PAGES: HelpPage[] = [
     summary: "One application: the tailored resume, cover letter, job description, screenshots and submission.",
     steps: [
       { title: "Review the documents", detail: "Use the Resume, Cover letter and Job description tabs (Chat is for interview practice, see below). You can edit the cover letter and click Save cover letter; the next download uses it. Click Download ZIP when you're ready to apply." },
+      { title: "Regenerate", detail: "Not happy with the result? Click Regenerate at the top of the page: a new resume and cover letter are written for the same job and replace the current ones (cover letter edits included). It stays the same application, so no quota is used, and notes and screenshots are kept. The posting is read again from its link first. Submitted applications can't be regenerated." },
       { title: "Save to folder (Chrome / Edge)", detail: "Save to folder writes the files straight into a folder on your computer as [Date]/[Profile]/[Job title]_[Company]/, with nothing to unzip. The first time, pick or create a folder (for example Applications inside Downloads; the browser doesn't allow Downloads itself). It is remembered in this browser; the folder button next to it changes it. Files with the same name are replaced." },
       { title: "Open the job posting", detail: "Click Open job posting to apply on the company's site." },
       { title: "Attach screenshots", detail: "Upload, drag or paste (Ctrl+V) the confirmation screenshot. Click a thumbnail to view it full size." },

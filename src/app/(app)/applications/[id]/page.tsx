@@ -126,6 +126,27 @@ export default function ApplicationDetail({
     }
   }
 
+  async function regenerate() {
+    if (!app) return;
+    const ok = await confirm({
+      title: "Regenerate this application?",
+      message:
+        "A new resume and cover letter are written for this job and replace the current ones, including any changes you saved to the cover letter. Notes and screenshots stay. Takes up to a minute.",
+      confirmLabel: "Regenerate",
+    });
+    if (!ok) return;
+    setBusy("regenerate");
+    try {
+      await api(`/api/applications/${id}/regenerate`, { method: "POST" });
+      toast.success("Regenerated", "New resume and cover letter are ready.");
+      reload();
+    } catch (e) {
+      toast.error("Couldn't regenerate", (e as Error).message);
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function remove() {
     if (!app) return;
     const ok = await confirm({
@@ -187,6 +208,20 @@ export default function ApplicationDetail({
             {app.status !== "not_generated" && (isUnknownCompany(app.company) || isUntitledRole(app.jobTitle)) && (
               <button className="btn btn-secondary" onClick={() => setFixing({})}>
                 <Pencil /> Add company & role
+              </button>
+            )}
+            {/* Submitted documents stay as they were sent. */}
+            {app.status === "generated" && role !== "caller" && (
+              <button className="btn btn-secondary" onClick={regenerate} disabled={!!busy} title="Write a new resume and cover letter for this job">
+                {busy === "regenerate" ? (
+                  <>
+                    <Spinner /> Regenerating…
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw /> Regenerate
+                  </>
+                )}
               </button>
             )}
             {folderApi ? (
