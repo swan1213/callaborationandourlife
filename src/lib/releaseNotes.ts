@@ -25,6 +25,17 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-29",
+    date: "2026-10-29",
+    title: "Delete from the application page",
+    changes: [
+      {
+        text: "A generated application's page now has a trash button at the top right, after Download ZIP, so you can remove it without going back to the list. Paid applications still can't be deleted.",
+        roles: ["admin", "user"],
+      },
+    ],
+  },
+  {
     id: "2026-10-28-5",
     date: "2026-10-28",
     title: "A tidier Chat question box",

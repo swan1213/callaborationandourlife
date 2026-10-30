@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Briefcase, CircleCheck, Clock, Download, ExternalLink, FileText, FolderCog, FolderDown, Mail, MessagesSquare, Pencil, RefreshCw, Send, Sparkles, Trash2, TriangleAlert, Undo2 } from "lucide-react";
 import ScreenshotUploader from "@/components/ScreenshotUploader";
 import Lightbox, { type Slide } from "@/components/Lightbox";
@@ -42,6 +43,7 @@ type Detail = {
   profile?: { label: string; fullName: string };
   user?: { name: string; email: string };
   deletedByUser?: boolean;
+  paid?: boolean;
 };
 
 const TABS = ["Resume", "Cover letter", "Job description", "Chat"] as const;
@@ -68,6 +70,7 @@ export default function ApplicationDetail({
   const [viewer, setViewer] = useState<{ slides: Slide[]; start: number } | null>(null);
   const [fixing, setFixing] = useState<{ reason?: string } | null>(null);
   const role = useRole();
+  const router = useRouter();
   // Save to folder needs the File System Access API (desktop Chrome / Edge); elsewhere only the ZIP is offered.
   const [folderApi, setFolderApi] = useState(false);
   const [folderName, setFolderName] = useState("");
@@ -119,6 +122,26 @@ export default function ApplicationDetail({
     } catch (e) {
       toast.error("Couldn't save to the folder", (e as Error).message);
     } finally {
+      setBusy("");
+    }
+  }
+
+  async function remove() {
+    if (!app) return;
+    const ok = await confirm({
+      title: "Delete this application?",
+      message: `"${app.company || "Unknown company"} / ${app.jobTitle || "Untitled role"}" is removed from your list.`,
+      confirmLabel: "Delete application",
+      danger: true,
+    });
+    if (!ok) return;
+    setBusy("delete");
+    try {
+      await api(`/api/applications/${id}`, { method: "DELETE" });
+      toast.success("Application deleted", `${app.company} · ${app.jobTitle}`);
+      router.push("/applications");
+    } catch (e) {
+      toast.error((e as Error).message);
       setBusy("");
     }
   }
@@ -195,6 +218,21 @@ export default function ApplicationDetail({
               <button className="btn btn-primary" onClick={download} disabled={busy === "download"}>
                 {busy === "download" ? <Spinner /> : <Download />} Download ZIP
               </button>
+            )}
+            {/* Last and quiet, apart from the main actions. Same rule as the list: bidders can't delete, and paid applications stay. */}
+            {role !== "bidder" && (
+              <>
+                <span aria-hidden className="mx-0.5 hidden h-6 w-px self-center bg-slate-200 sm:block" />
+                <button
+                  className="btn btn-secondary btn-icon text-slate-500 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+                  onClick={remove}
+                  disabled={!!busy || !!app.paid}
+                  aria-label="Delete application"
+                  title={app.paid ? "Paid applications can't be deleted" : "Delete this application"}
+                >
+                  {busy === "delete" ? <Spinner /> : <Trash2 />}
+                </button>
+              </>
             )}
           </>
         }
