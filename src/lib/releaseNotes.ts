@@ -25,6 +25,17 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-30-5",
+    date: "2026-10-30",
+    title: "Interview calendar shows more",
+    changes: [
+      {
+        text: "Each interview in the month calendar is now a small card: time (and end time when there's room), step, status (Booked, Done, Report due, Waiting, Open, Canceled), company, role, profile and caller. Busy weeks get taller rows.",
+        roles: ALL,
+      },
+    ],
+  },
+  {
     id: "2026-10-30-4",
     date: "2026-10-30",
     title: "Fewer lost generations on a dropped connection",

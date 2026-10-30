@@ -1303,7 +1303,7 @@ export function InterviewCalendar({
                         aria-label={`Step ${i.step ?? 1} · ${fmtTime(calendarTime(i))} · ${i.company} · ${i.profile?.label ?? i.profileLabel} · ${i.caller?.name ?? "unassigned"}${done ? " · done" : ""}`}
                         className={`w-full cursor-pointer rounded-md border-l-[3px] ${c.border} text-left text-[11px] leading-tight text-slate-800 transition-colors ${
                           booked ? c.tint : "border-y border-r border-dashed border-y-slate-300 border-r-slate-300 bg-transparent text-slate-500 italic hover:bg-slate-50"
-                        } ${week ? "block px-2 py-1.5" : "flex items-center gap-1.5 px-1.5 py-1"} ${i.status === "cancelled" ? "line-through opacity-60" : ""}`}
+                        } ${week ? "block px-2 py-1.5" : "@container block overflow-hidden px-1.5 py-1.5"} ${i.status === "cancelled" ? "line-through opacity-60" : ""}`}
                       >
                         {week ? (
                           <>
@@ -1323,13 +1323,33 @@ export function InterviewCalendar({
                             </span>
                           </>
                         ) : (
+                          // Month: a small card with what, when, how far and who, so the day reads without hovering.
                           <>
-                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${booked ? callerColor(i.caller?._id) : "border border-slate-400"}`} />
-                            {time}
-                            {done && <DoneMark />}
-                            <span className="truncate font-medium">{i.company}</span>
-                            {(i.step ?? 1) > 1 && <span className="shrink-0 text-[10px] font-semibold text-slate-500">S{i.step}</span>}
-                            {!!notes.length && <NoteCount n={notes.length} className="ml-auto" />}
+                            <span className="flex min-w-0 items-center gap-1">
+                              {time}
+                              {/* End time only where the cell is wide enough to keep the status label in. */}
+                              {booked && (
+                                <span className="hidden shrink-0 whitespace-nowrap text-slate-500 tabular-nums @[10rem]:inline">
+                                  –{fmtTime(new Date(calendarTime(i).getTime() + (i.durationMinutes || 0) * 60_000))}
+                                </span>
+                              )}
+                              {(i.step ?? 1) > 1 && <span className="shrink-0 text-[10px] font-semibold text-slate-500">S{i.step}</span>}
+                              <EntryStatus i={i} className="ml-auto" />
+                            </span>
+                            <span className="mt-0.5 block truncate text-xs font-semibold text-slate-900 not-italic">{i.company}</span>
+                            {i.jobTitle && <span className="block truncate text-slate-500">{i.jobTitle}</span>}
+                            <span className="mt-1 flex items-center gap-1.5 text-[10px] text-slate-600">
+                              <span className="flex min-w-0 flex-1 items-center gap-1" title="Profile">
+                                <span className={`size-1.5 shrink-0 rounded-full ${c.dot}`} />
+                                <span className="truncate">{i.profile?.label ?? i.profileLabel}</span>
+                              </span>
+                              {/* First name only: the profile gets the room, the hover card has the full name. */}
+                              <span className="flex max-w-[50%] min-w-0 items-center gap-1" title={i.caller ? `Caller: ${i.caller.name}` : "No caller yet"}>
+                                <CallerAvatar caller={i.caller} size={14} />
+                                <span className="truncate">{i.caller?.name.split(/\s+/)[0] ?? "No caller"}</span>
+                              </span>
+                            </span>
+                            {!!notes.length && <NoteCount n={notes.length} className="mt-1" />}
                           </>
                         )}
                       </div>
@@ -1371,6 +1391,28 @@ function DoneMark({ className = "" }: { className?: string }) {
   return (
     <span className={`grid size-3.5 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/30 ring-inset ${className}`} title="Done">
       <Check className="size-2.5" strokeWidth={3.5} aria-hidden />
+    </span>
+  );
+}
+
+const ENTRY_STATUS: Record<Interview["status"], [string, string]> = {
+  pending: ["Waiting", "bg-amber-50 text-amber-700 ring-amber-600/25 dark:bg-amber-500/15 dark:text-amber-300"],
+  open: ["Open", "bg-amber-50 text-amber-700 ring-amber-600/25 dark:bg-amber-500/15 dark:text-amber-300"],
+  scheduled: ["Booked", "bg-indigo-50 text-indigo-700 ring-indigo-600/25 dark:bg-indigo-500/15 dark:text-indigo-300"],
+  completed: ["Done", "bg-emerald-50 text-emerald-700 ring-emerald-600/25 dark:bg-emerald-500/15 dark:text-emerald-300"],
+  cancelled: ["Canceled", "bg-rose-50 text-rose-700 ring-rose-600/25 dark:bg-rose-500/15 dark:text-rose-300"],
+};
+
+/** Short status label for a month-calendar card (the hover card has the full wording). */
+function EntryStatus({ i, className = "" }: { i: Interview; className?: string }) {
+  const [label, tone] = reportDue(i) ? ["Report due", "bg-orange-50 text-orange-700 ring-orange-600/25 dark:bg-orange-500/15 dark:text-orange-300"] : ENTRY_STATUS[i.status];
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-0.5 rounded px-1 py-px text-[9px] font-bold tracking-wide whitespace-nowrap uppercase not-italic ring-1 ring-inset ${tone} ${className}`}
+      title={STATUS_LABEL[i.status]}
+    >
+      {i.status === "completed" && <Check className="size-2.5" strokeWidth={3.5} aria-hidden />}
+      {label}
     </span>
   );
 }
