@@ -25,6 +25,17 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-30-3",
+    date: "2026-10-30",
+    title: "Delete a job that couldn't be read",
+    changes: [
+      {
+        text: "A job whose description couldn't be read from its link (Not-Generated) now has the same trash button at the top right, so you can delete it without going back to the list.",
+        roles: ["admin", "user", "caller"],
+      },
+    ],
+  },
+  {
     id: "2026-10-30-2",
     date: "2026-10-30",
     title: "Regenerate an application",

@@ -181,7 +181,9 @@ export default function ApplicationDetail({
 
   if (loading && !app) return <PageSkeleton variant="cards" />;
   if (error || !app) return <Alert>{error || "Not found"}</Alert>;
-  if (app.status === "not_generated") return <NotGeneratedView app={app} onGenerated={reload} />;
+  if (app.status === "not_generated") return (
+      <NotGeneratedView app={app} onGenerated={reload} onDelete={role !== "bidder" ? remove : undefined} deleting={busy === "delete"} />
+    );
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -483,7 +485,18 @@ export default function ApplicationDetail({
 }
 
 /** A job imported from a URL whose description could not be read: paste it to generate the documents. */
-function NotGeneratedView({ app, onGenerated }: { app: Detail; onGenerated: () => void }) {
+function NotGeneratedView({
+  app,
+  onGenerated,
+  onDelete,
+  deleting,
+}: {
+  app: Detail;
+  onGenerated: () => void;
+  /** Absent for bidders, who can't delete. */
+  onDelete?: () => void;
+  deleting: boolean;
+}) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState<"" | "paste" | "retry">("");
   const [msg, setMsg] = useState<{ kind: "error" | "success"; text: string } | null>(null);
@@ -512,12 +525,28 @@ function NotGeneratedView({ app, onGenerated }: { app: Detail; onGenerated: () =
         title={app.company || "Job posting"}
         subtitle={[`Profile: ${app.profile?.label ?? "—"}`, `Imported ${fmtDateTime(app.createdAt)}`, app.user && `By ${app.user.name}`].filter(Boolean).join("  ·  ")}
         actions={
-          app.jobUrl ? (
-            <PostingLink url={app.jobUrl} read={app.jobUrlRead} className="btn btn-secondary" unreadClassName="text-slate-700" readClassName="text-slate-400">
-              <ExternalLink />
-              Open job posting
-            </PostingLink>
-          ) : undefined
+          <>
+            {app.jobUrl && (
+              <PostingLink url={app.jobUrl} read={app.jobUrlRead} className="btn btn-secondary" unreadClassName="text-slate-700" readClassName="text-slate-400">
+                <ExternalLink />
+                Open job posting
+              </PostingLink>
+            )}
+            {onDelete && (
+              <>
+                <span aria-hidden className="mx-0.5 hidden h-6 w-px self-center bg-slate-200 sm:block" />
+                <button
+                  className="btn btn-secondary btn-icon text-slate-500 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+                  onClick={onDelete}
+                  disabled={!!busy || deleting || !!app.paid}
+                  aria-label="Delete application"
+                  title={app.paid ? "Paid applications can't be deleted" : "Delete this application"}
+                >
+                  {deleting ? <Spinner /> : <Trash2 />}
+                </button>
+              </>
+            )}
+          </>
         }
       />
       <div className="card p-0">
