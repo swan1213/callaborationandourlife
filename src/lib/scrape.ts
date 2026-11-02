@@ -146,6 +146,74 @@ async function scrapeWorkable(url: URL): Promise<ScrapedJob | null> {
 
 const CLOSED_JOB = "This job posting is closed or no longer exists, so nothing was generated. Check the link, or paste the job description manually.";
 
+/** One posting from a job board's API, as text: title, where, then the description. */
+function boardJob(url: URL, title: string, company: string, location: string, html: string): ScrapedJob | null {
+  const body = htmlToText(html);
+  if (body.length < 200) return null;
+  return {
+    url: url.toString(),
+    title,
+    company,
+    location,
+    text: clean(`${title}${location ? `\n${location}` : ""}\n\n${body}`).slice(0, MAX_TEXT),
+    companyTrusted: !!company,
+    titleTrusted: !!title,
+  };
+}
+
+/**
+ * BambooHR careers pages are rendered by JavaScript; the same site serves the posting as JSON.
+ * Links: {company}.bamboohr.com/careers/{id} (or the older /jobs/view.php?id={id}).
+ */
+async function scrapeBamboo(url: URL): Promise<ScrapedJob | null> {
+  const host = url.hostname.toLowerCase();
+  if (!host.endsWith(".bamboohr.com")) return null;
+  const id = url.pathname.match(/\/careers\/(\d+)/)?.[1] ?? (url.pathname.includes("/jobs/view.php") ? url.searchParams.get("id") : "") ?? "";
+  if (!/^\d+$/.test(id)) return null;
+  const base = `https://${host}/careers`;
+  let res: Response;
+  try {
+    res = await fetch(`${base}/${id}/detail`, { signal: AbortSignal.timeout(15000), headers: { "User-Agent": UA, Accept: "application/json" } });
+  } catch {
+    return null;
+  }
+  if (res.status === 404) throw new HttpError(422, CLOSED_JOB);
+  if (!res.ok) return null;
+  const job = ((await res.json().catch(() => null)) as JsonLd | null)?.result as JsonLd | undefined;
+  const opening = (job?.jobOpening ?? {}) as JsonLd;
+  if (str(opening.jobOpeningStatus) && str(opening.jobOpeningStatus) !== "Open") throw new HttpError(422, CLOSED_JOB);
+  const org = ((await getJson(`${base}/company-info`))?.result ?? {}) as JsonLd;
+  const loc = { ...((opening.atsLocation ?? {}) as JsonLd), ...Object.fromEntries(Object.entries((opening.location ?? {}) as JsonLd).filter(([, v]) => v)) };
+  const place = [str(loc.city), str(loc.state), str(loc.country) || str(loc.addressCountry)].filter(Boolean).join(", ");
+  // BambooHR's locationType: 0 on-site, 1 remote, 2 hybrid.
+  const mode = ({ "1": "Remote", "2": "Hybrid" } as Record<string, string>)[str(opening.locationType)] ?? "";
+  return boardJob(url, str(opening.jobOpeningName), str(org.name), [mode, place].filter(Boolean).join(", "), str(opening.description));
+}
+
+/**
+ * Gem job boards (jobs.gem.com/{board}/{id}) are rendered by JavaScript; Gem's public job board API has the posting.
+ * It doesn't name the company, so the AI reads it from the description.
+ */
+async function scrapeGem(url: URL): Promise<ScrapedJob | null> {
+  if (url.hostname.toLowerCase() !== "jobs.gem.com") return null;
+  const [board, id] = url.pathname.split("/").filter(Boolean);
+  if (!board || !id || !/^[\w-]+$/.test(board) || !/^[\w-]+$/.test(id)) return null;
+  let res: Response;
+  try {
+    res = await fetch(`https://api.gem.com/job_board/v0/${board}/job_posts/${id}`, {
+      signal: AbortSignal.timeout(15000),
+      headers: { "User-Agent": UA, Accept: "application/json" },
+    });
+  } catch {
+    return null;
+  }
+  if (res.status === 404) throw new HttpError(422, CLOSED_JOB);
+  if (!res.ok) return null;
+  const job = (await res.json().catch(() => null)) as JsonLd | null;
+  const location = str((job?.location as JsonLd | undefined)?.name);
+  return boardJob(url, str(job?.title), "", location, str(job?.content));
+}
+
 /**
  * Greenhouse job from the link alone: {board}/jobs/{id} on greenhouse.io, the embed URL (?for=board&token=id),
  * or a company careers page with ?gh_jid={id} (board unknown until the page is read).
@@ -222,7 +290,7 @@ export async function scrapeJob(rawUrl: string): Promise<ScrapedJob> {
   const url = assertPublicUrl(rawUrl.trim());
 
   // Job boards whose pages need JavaScript: read their public posting APIs.
-  const fromApi = await scrapeWorkable(url);
+  const fromApi = (await scrapeWorkable(url)) ?? (await scrapeBamboo(url)) ?? (await scrapeGem(url));
   if (fromApi && fromApi.text.length > 200) return fromApi;
   const gh = greenhouseRef(url);
   if (gh?.board) {

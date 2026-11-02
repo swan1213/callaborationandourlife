@@ -25,6 +25,15 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-02",
+    date: "2026-11-02",
+    title: "BambooHR and Gem job links",
+    changes: [
+      { text: "Job links from BambooHR (company.bamboohr.com/careers/…) and Gem (jobs.gem.com/…) are now read: the full description, title and location, so no more pasting.", roles: APPS },
+    ],
+    steps: [{ text: "A link of theirs that failed before can be retried with Try the URL again.", roles: APPS }],
+  },
+  {
     id: "2026-10-30-5",
     date: "2026-10-30",
     title: "Interview calendar shows more",
