@@ -16,6 +16,11 @@ import { ActivityLog } from "../../src/lib/models/ActivityLog";
 import { Settings } from "../../src/lib/models/Settings";
 import { InterviewSession } from "../../src/lib/models/InterviewSession";
 import { WorkSession } from "../../src/lib/models/WorkSession";
+import { ChatConversation, ChatMessage, ChatRead } from "../../src/lib/models/Chat";
+import { JobLinkCopy } from "../../src/lib/models/JobLinkCopy";
+import { urlKey } from "../../src/lib/links";
+import { reportText } from "../../src/lib/workReport";
+import { LATEST_RELEASE } from "../../src/lib/releaseNotes";
 import { encrypt } from "../../src/lib/crypto";
 import { companyKey } from "../../src/lib/company";
 import type { ResumeContent } from "../../src/lib/generate";
@@ -119,7 +124,7 @@ async function main() {
   /* ------------------------------------------------------------ people */
   const hash = await bcrypt.hash(DEMO_PASSWORD, 10);
   const person = (name: string, email: string, role: string, extra: Record<string, unknown> = {}) =>
-    User.create({ name, email, passwordHash: hash, role, status: "approved", lastLoginAt: ago(3 * HOUR), lastSeenAt: ago(5 * 60_000), lastActiveAt: ago(5 * 60_000), ...extra });
+    User.create({ name, email, passwordHash: hash, role, status: "approved", lastLoginAt: ago(3 * HOUR), lastSeenAt: ago(5 * 60_000), lastActiveAt: ago(5 * 60_000), seenRelease: LATEST_RELEASE, ...extra });
   const admin = await person("Alex Morgan", "alex@demo.tailorbid.test", "admin", { avatar: "preset:fox", feePerApplication: 0, timezone: "America/New_York" });
   const manager = await person("Jordan Lee", "jordan@demo.tailorbid.test", "user", { avatar: "preset:koala", managedProfiles: [daniel._id, sophia._id, emma._id], feePerApplication: 0 });
   const casey = await person("Casey Brooks", "casey@demo.tailorbid.test", "bidder", { avatar: "preset:lion", assignedProfiles: [daniel._id, sophia._id, emma._id] });
@@ -180,7 +185,8 @@ async function main() {
       title: e.title ?? "",
       location: e.location ?? "",
       startDate: e.startDate ?? "",
-      endDate: e.current ? "Present" : (e.endDate ?? ""),
+      // Empty for the current job: the resume shows "Present" (as generated resumes do).
+      endDate: e.current ? "" : (e.endDate ?? ""),
       bullets: [
         "Designed and shipped a service handling 12K requests per second with 99.99% availability.",
         "Cut p95 latency by 40% by redesigning caching and database access patterns.",
@@ -193,7 +199,7 @@ async function main() {
   const coverFor = (p: (typeof profiles)[number], company: string, title: string) =>
     `Dear Hiring Team,\n\nI am excited to apply for the ${title} role at ${company}. Over the past ${p.yearsExperience} years I have built and scaled backend systems that handle millions of users, and I would love to bring that experience to your team.\n\nAt ${p.experience[0].company} I led the payments platform team and cut checkout latency by 40%. I enjoy turning ambiguous problems into simple, dependable services.\n\nThank you for your time and consideration.\n\nSincerely,\n${p.fullName}`;
   const jdFor = (company: string, title: string, loc: string) =>
-    `${title} at ${company} (${loc})\n\nAbout the role\nYou will design, build and operate services used by millions of customers.\n\nWhat you'll do\n- Own critical backend services end to end\n- Partner with product and design on new features\n- Improve reliability, performance and developer experience\n\nWhat we're looking for\n- 5+ years building production software\n- Experience with TypeScript, Go or Java\n- Experience with cloud infrastructure (AWS or GCP)`;
+    `${title} at ${company} (${loc})\n\nSalary: $165,000 - $195,000 per year\n\nAbout the role\nYou will design, build and operate services used by millions of customers.\n\nWhat you'll do\n- Own critical backend services end to end\n- Partner with product and design on new features\n- Improve reliability, performance and developer experience\n\nWhat we're looking for\n- 5+ years building production software\n- Experience with TypeScript, Go or Java\n- Experience with cloud infrastructure (AWS or GCP)`;
 
   const SHOT = "/help-demo/confirmation.png";
   const bidders = [casey, taylor, riley];
@@ -216,6 +222,7 @@ async function main() {
         profileLabel: p.label,
         companyKey: unknownCompany ? "" : companyKey(company),
         jobUrl: `https://boards.greenhouse.io/${company.toLowerCase()}/jobs/${4100000 + i * 7919}`,
+        jobUrlKey: urlKey(`https://boards.greenhouse.io/${company.toLowerCase()}/jobs/${4100000 + i * 7919}`),
         company: unknownCompany ? "" : company,
         jobTitle,
         jobLocation,
@@ -400,6 +407,55 @@ async function main() {
       stretches.push({ user: u._id, start: new Date(begin + (hours + 1) * HOUR), end: new Date(Math.min(begin + (hours + 3) * HOUR, now)) });
     }
   await WorkSession.create(stretches.filter((s) => s.end > s.start));
+
+  /* ------------------------------------------------------------ chat */
+  const team = await ChatConversation.create({ kind: "team", key: "team", members: [] });
+  const say = async (conv, who, body, minsAgo, extra = {}) => {
+    const m = await ChatMessage.create({ conversation: conv._id, sender: who._id, senderName: who.name, body, createdAt: ago(minsAgo * 60_000), updatedAt: ago(minsAgo * 60_000), ...extra });
+    await ChatConversation.updateOne({ _id: conv._id }, { lastMessageAt: m.createdAt, lastMessage: { body: body || "Image", sender: who._id, senderName: who.name } });
+    return m;
+  };
+  const rules = await say(team, admin, "Team rules: attach the confirmation screenshot before you submit, and report every interview within 2 hours.", 26 * 60);
+  await ChatConversation.updateOne({ _id: team._id }, { pinned: [{ message: rules._id, body: rules.body, senderName: admin.name, pinnedBy: admin.name, pinnedAt: ago(26 * 60 * 60_000) }] });
+  await say(team, casey, "Good morning! Starting on Daniel's Greenhouse links now.", 95, { reactions: [{ emoji: "👋", user: admin._id, name: admin.name }, { emoji: "👋", user: taylor._id, name: taylor.name }] });
+  const ask = await say(team, taylor, "Has anyone applied to Stripe for Sophia yet? This one looks like a good fit:\nhttps://boards.greenhouse.io/stripe/jobs/4107919", 70);
+  await say(team, admin, "Yes, Casey did last week. Pick another company for Sophia.", 64, { replyTo: { message: ask._id, senderName: taylor.name, body: ask.body, image: false } });
+  await say(team, morgan, "Interview booked with Shopify for Daniel tomorrow at 10:00 ✅", 40, { reactions: [{ emoji: "🎉", user: casey._id, name: casey.name }, { emoji: "🎉", user: admin._id, name: admin.name }, { emoji: "🔥", user: manager._id, name: manager.name }] });
+  await say(team, casey, "The confirmation page looks like this, is that enough as proof?", 22, { images: [{ url: "/help-demo/confirmation.png", publicId: "", width: 1200, height: 800 }] });
+  await say(team, admin, "@Casey Brooks yes, that's perfect 👍", 18, { mentions: [{ user: casey._id, name: casey.name }] });
+
+  const dmKey = `dm:${[String(admin._id), String(casey._id)].sort().join(":")}`;
+  const dm = await ChatConversation.create({ kind: "direct", key: dmKey, members: [admin._id, casey._id] });
+  await say(dm, casey, "Hi Alex, could you raise my paste limit? I have a few unreadable job pages waiting.", 55);
+  await say(dm, admin, "Done, it's 150 now.", 50);
+  await say(dm, casey, "Thank you! 🙏", 49);
+
+  const group = await ChatConversation.create({ kind: "group", key: "group:tmp", name: "Daniel Park team", members: [admin._id, manager._id, casey._id, morgan._id], createdBy: admin._id });
+  await ChatConversation.updateOne({ _id: group._id }, { key: `group:${group._id}` });
+  await say(group, manager, "Daniel's profile has a new project in About this developer, please use it in new resumes.", 120);
+  await say(group, morgan, "Noted, I'll mention it in tomorrow's interview.", 110);
+
+  const reports = await ChatConversation.create({ kind: "reports", key: "reports", members: [] });
+  for (const [k, who] of [casey, taylor, morgan].entries()) {
+    const report = {
+      day: nyAt(-1, 12).toISOString().slice(0, 10),
+      from: nyAt(-2, 20).toISOString(),
+      to: nyAt(-1, 20).toISOString(),
+      role: who.role,
+      work: { minutes: [372, 298, 185][k], first: nyAt(-1, 8, 10 + k * 7).toISOString(), last: nyAt(-1, 16, 40 - k * 9).toISOString() },
+      apps: who.role === "caller" ? { generated: 0, submitted: 0, failed: 0, byProfile: [] } : { generated: [14, 9][k], submitted: [11, 7][k], failed: [2, 1][k], byProfile: [{ label: daniel.label, generated: [8, 5][k], submitted: [6, 4][k] }, { label: sophia.label, generated: [6, 4][k], submitted: [5, 3][k] }] },
+      interviews: who.role === "caller" ? { requested: 0, held: 3, reported: 2, outcomes: { passed: 1, failed: 0, waiting: 1, no_show: 0 } } : { requested: [2, 1][k], held: 0, reported: 0, outcomes: { passed: 0, failed: 0, waiting: 0, no_show: 0 } },
+      linksCopied: who.role === "caller" ? 0 : [25, 12][k],
+      chatMessages: [6, 3, 4][k],
+    };
+    await say(reports, admin, reportText(report), 14 * 60 - k, { sender: who._id, senderName: who.name, report });
+  }
+  // Everyone has read everything except the last two team messages, so the chat icon shows a count.
+  await ChatRead.create(everyone.flatMap((u) => [team, dm, group, reports].filter((c) => !c.members.length || c.members.some((m) => String(m) === String(u._id))).map((c) => ({ conversation: c._id, user: u._id, at: c === team ? ago(30 * 60_000) : now }))));
+
+  /* ------------------------------------------------------------ job links copied for Daniel */
+  const others = apps.filter((a) => String(a.profile) !== String(daniel._id) && a.jobUrl).slice(0, 4);
+  await JobLinkCopy.create(others.map((a, k) => ({ profile: daniel._id, url: a.jobUrl, urlKey: urlKey(a.jobUrl), firstCopiedAt: ago((k + 2) * DAY), copiedAt: ago((k + 1) * 5 * HOUR), copiedBy: manager._id, count: k + 1 })));
 
   console.log(`Demo data ready in ${MONGODB_DB}: ${apps.length} applications, password "${DEMO_PASSWORD}".`);
   await mongoose.disconnect();

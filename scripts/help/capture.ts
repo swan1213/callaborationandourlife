@@ -97,7 +97,7 @@ const SHOTS: Shot[] = [
   { file: "generate-4", role: "user", path: () => `/applications/${ids.generated}`, target: (p) => btn(p, /Download ZIP/) },
 
   /* import (bidder) */
-  { file: "import-1", role: "bidder", path: "/dashboard/import", target: (p) => main(p).locator("select").first().locator("xpath=../..") },
+  { file: "import-1", role: "bidder", path: "/dashboard/import", target: (p) => main(p).locator('[aria-haspopup=listbox]').first().locator("xpath=../..") },
   { file: "import-2", role: "bidder", path: "/dashboard/import", prepare: (p) => p.locator("textarea").first().fill(["https://boards.greenhouse.io/acme/jobs/4815162342", "https://jobs.lever.co/globex/7d1c2b9e", "https://careers.initech.com/jobs/senior-backend-engineer"].join("\n")), target: (p) => p.locator("textarea").first().locator("xpath=..") },
   { file: "import-3", role: "bidder", path: "/dashboard/import", prepare: (p) => p.locator("textarea").first().fill(["https://boards.greenhouse.io/acme/jobs/4815162342", "https://jobs.lever.co/globex/7d1c2b9e", "https://careers.initech.com/jobs/senior-backend-engineer"].join("\n")), target: (p) => btn(p, /Generate \d* ?resumes?/) },
   { file: "import-4", role: "bidder", path: "/dashboard/import", prepare: (p) => runImport(p), target: (p) => card(text(p, "Results")) },
@@ -115,10 +115,16 @@ const SHOTS: Shot[] = [
 
   /* application-detail (bidder) */
   { file: "application-detail-1", role: "bidder", path: () => `/applications/${ids.generated}`, target: (p) => p.getByRole("tablist").first() },
-  { file: "application-detail-2", role: "bidder", path: () => `/applications/${ids.generated}`, target: (p) => link(p, /Open job posting/) },
-  { file: "application-detail-3", role: "bidder", path: () => `/applications/${ids.generated}`, target: (p) => card(text(p, "Submission")) },
-  { file: "application-detail-4", role: "bidder", path: () => `/applications/${ids.generated}`, target: (p) => btn(p, /Submit application/) },
-  { file: "application-detail-5", role: "bidder", path: () => `/applications/${ids.notGenerated}`, target: (p) => card(main(p).locator("textarea").first()) },
+  { file: "application-detail-2", role: "bidder", path: () => `/applications/${ids.generated}`, prepare: (p) => click(tab(p, "Job description"), 1000), target: (p) => card(text(p, "About the role")) },
+  { file: "application-detail-3", role: "bidder", path: () => `/applications/${ids.generated}`, target: (p) => card(main(p).getByRole("heading", { name: "Job match" })) },
+  { file: "application-detail-4", role: "bidder", path: () => `/applications/${ids.generated}`, target: (p) => btn(p, "Regenerate") },
+  { file: "application-detail-5", role: "bidder", path: () => `/applications/${ids.generated}`, target: (p) => btn(p, /Save to folder/).locator("xpath=..") },
+  { file: "application-detail-6", role: "bidder", path: () => `/applications/${ids.generated}`, target: (p) => link(p, /Open job posting/) },
+  { file: "application-detail-7", role: "bidder", path: () => `/applications/${ids.generated}`, target: (p) => card(text(p, "Submission")) },
+  { file: "application-detail-8", role: "bidder", path: () => `/applications/${ids.generated}`, target: (p) => btn(p, /Submit application/) },
+  { file: "application-detail-9", role: "admin", path: () => `/applications/${ids.generated}`, target: (p) => btn(p, "Delete application") },
+  { file: "application-detail-10", role: "bidder", path: () => `/applications/${ids.notGenerated}`, target: (p) => card(main(p).locator("textarea").first()) },
+  { file: "application-detail-11", role: "bidder", path: () => `/applications/${ids.generated}`, prepare: async (p) => { await click(tab(p, "Chat"), 1000); await p.getByRole("textbox", { name: "Interview question" }).fill("Tell me about a project you're proud of."); }, target: (p) => p.getByRole("textbox", { name: "Interview question" }).locator("xpath=ancestor::form[1]") },
 
   /* interview-requests (bidder) */
   { file: "interview-requests-1", role: "bidder", path: "/interviews", target: (p) => btn(p, /New interview request/) },
@@ -143,7 +149,7 @@ const SHOTS: Shot[] = [
   { file: "caller-schedule-1", role: "caller", path: "/caller/schedule", target: (p) => tab(p, "Month").locator("xpath=..") },
   { file: "caller-schedule-2", role: "caller", path: "/caller/schedule", target: (p) => btn(p, /All my profiles/).locator("xpath=..") },
   { file: "caller-schedule-3", role: "caller", path: "/caller/schedule", target: (p) => [tzPicker(p), text(p, "Show unscheduled requests")] },
-  { file: "caller-schedule-4", role: "caller", path: "/caller/schedule", prepare: (p) => click(tab(p, "List")), target: (p) => main(p).locator("table").first() },
+  { file: "caller-schedule-4", role: "caller", path: "/caller/schedule", prepare: (p) => p.locator("[data-entry]").first().scrollIntoViewIfNeeded(), target: (p) => p.locator("[data-entry]").first() },
   { file: "caller-schedule-5", role: "caller", path: "/caller/schedule", prepare: (p) => click(tab(p, "Board")), target: (p) => main(p).locator("[draggable=true]").first() },
   { file: "caller-schedule-6", role: "caller", path: "/caller/schedule", prepare: async (p) => { await click(tab(p, "List")); await click(main(p).locator("tbody tr", { hasText: "Shopify" }).first(), 1500); }, target: (p) => dialog(p) },
 
@@ -160,7 +166,7 @@ const SHOTS: Shot[] = [
   /* notifications (bidder) */
   { file: "notifications-1", role: "bidder", path: "/applications", target: (p) => p.getByRole("button", { name: /notification/i }).first() },
   { file: "notifications-2", role: "bidder", path: "/applications", prepare: (p) => click(p.getByRole("button", { name: /notification/i }).first()), target: (p) => p.locator(".popover").last() },
-  { file: "notifications-3", role: "bidder", path: "/notifications", target: (p) => [btn(p, /^Unread/).locator("xpath=.."), main(p).locator("select").first(), btn(p, /Mark all read/)] },
+  { file: "notifications-3", role: "bidder", path: "/notifications", target: (p) => [btn(p, /^Unread/).locator("xpath=.."), main(p).locator('[aria-haspopup=listbox]').first(), btn(p, /Mark all read/)] },
 
   /* feedback (caller) */
   { file: "feedback-1", role: "caller", path: "/feedback", target: (p) => btn(p, /Send feedback/) },
@@ -197,7 +203,7 @@ const SHOTS: Shot[] = [
   { file: "admin-work-time-3", role: "admin", path: "/admin/work-time", target: (p) => p.locator("table").first() },
 
   /* admin-users */
-  { file: "admin-users-1", role: "admin", path: "/admin/users", target: (p) => [btn(p, /^Bidders/).locator("xpath=.."), main(p).locator("select").first()] },
+  { file: "admin-users-1", role: "admin", path: "/admin/users", target: (p) => [btn(p, /^Bidders/).locator("xpath=.."), main(p).locator('[aria-haspopup=listbox]').first()] },
   { file: "admin-users-2", role: "admin", path: "/admin/users", prepare: (p) => click(btn(p, "Add account"), 1000), target: (p) => dialog(p) },
   { file: "admin-users-3", role: "admin", path: "/admin/users", prepare: async (p) => { await rowMenu(p, "Casey Brooks"); await click(p.getByRole("menuitem", { name: /^Edit/ }), 1000); }, target: (p) => dialog(p) },
   { file: "admin-users-4", role: "admin", path: "/admin/users", prepare: (p) => rowMenu(p, "Casey Brooks"), target: (p) => menu(p) },
@@ -227,14 +233,15 @@ const SHOTS: Shot[] = [
   { file: "admin-interviews-1", role: "admin", path: "/admin/interviews", target: (p) => stat(p, "Today").locator("xpath=..") },
   { file: "admin-interviews-2", role: "admin", path: "/admin/interviews", target: (p) => card(tab(p, "Month")) },
   { file: "admin-interviews-3", role: "admin", path: "/admin/interviews", target: (p) => tzPicker(p) },
-  { file: "admin-interviews-4", role: "admin", path: "/admin/interviews", target: (p) => text(p, "Profiles").locator("xpath=..") },
-  { file: "admin-interviews-5", role: "admin", path: "/admin/interviews", prepare: (p) => text(p, /October|November|December|January/).scrollIntoViewIfNeeded(), target: (p) => p.locator("[draggable=true]").first() },
-  { file: "admin-interviews-6", role: "admin", path: "/admin/interviews", prepare: (p) => p.locator("[draggable=true]").first().scrollIntoViewIfNeeded(), target: (p) => p.locator("[draggable=true]").first() },
-  { file: "admin-interviews-7", role: "admin", path: "/admin/interviews", prepare: (p) => openInterview(p), target: (p) => btn(dialog(p), /Edit schedule/) },
-  { file: "admin-interviews-8", role: "admin", path: "/admin/interviews", prepare: (p) => click(btn(p, "Send message"), 3000), target: (p) => dialog(p) },
-  { file: "admin-interviews-9", role: "admin", path: "/admin/interviews", prepare: (p) => click(tab(p, "Month")), target: (p) => card(text(p, "Waiting for a caller")) },
-  { file: "admin-interviews-10", role: "admin", path: "/admin/interviews", prepare: (p) => openInterview(p), target: (p) => dialog(p) },
-  { file: "admin-interviews-11", role: "admin", path: "/admin/interviews", target: (p) => btn(p, "Interview Assistant") },
+  { file: "admin-interviews-4", role: "admin", path: "/admin/interviews", prepare: (p) => p.locator("[data-entry]").first().scrollIntoViewIfNeeded(), target: (p) => p.locator("[data-entry]").first() },
+  { file: "admin-interviews-5", role: "admin", path: "/admin/interviews", target: (p) => text(p, "Profiles").locator("xpath=..") },
+  { file: "admin-interviews-6", role: "admin", path: "/admin/interviews", prepare: (p) => text(p, /October|November|December|January/).scrollIntoViewIfNeeded(), target: (p) => p.locator("[draggable=true]").first() },
+  { file: "admin-interviews-7", role: "admin", path: "/admin/interviews", prepare: (p) => p.locator("[draggable=true]").first().scrollIntoViewIfNeeded(), target: (p) => p.locator("[draggable=true]").first() },
+  { file: "admin-interviews-8", role: "admin", path: "/admin/interviews", prepare: (p) => openInterview(p), target: (p) => btn(dialog(p), /Edit schedule/) },
+  { file: "admin-interviews-9", role: "admin", path: "/admin/interviews", prepare: (p) => click(btn(p, "Send message"), 3000), target: (p) => dialog(p) },
+  { file: "admin-interviews-10", role: "admin", path: "/admin/interviews", prepare: (p) => click(tab(p, "Month")), target: (p) => card(text(p, "Waiting for a caller")) },
+  { file: "admin-interviews-11", role: "admin", path: "/admin/interviews", prepare: (p) => openInterview(p), target: (p) => dialog(p) },
+  { file: "admin-interviews-12", role: "admin", path: "/admin/interviews", target: (p) => btn(p, "Interview Assistant") },
 
   /* admin-notifications */
   { file: "admin-notifications-1", role: "admin", path: "/admin/notifications", target: (p) => btn(p, /New notification/) },
@@ -244,7 +251,7 @@ const SHOTS: Shot[] = [
   { file: "admin-notifications-5", role: "admin", path: "/admin/notifications", target: (p) => p.locator("table, .card").nth(0) },
 
   /* admin-feedback */
-  { file: "admin-feedback-1", role: "admin", path: "/admin/feedback", target: (p) => p.locator("select").first().locator("xpath=../..") },
+  { file: "admin-feedback-1", role: "admin", path: "/admin/feedback", target: (p) => p.locator('[aria-haspopup=listbox]').first().locator("xpath=../..") },
   { file: "admin-feedback-2", role: "admin", path: "/admin/feedback", prepare: (p) => click(text(p, /Calendar shows the wrong week/), 1000), target: (p) => dialog(p) },
   { file: "admin-feedback-3", role: "admin", path: "/admin/feedback", prepare: (p) => click(text(p, /Calendar shows the wrong week/), 1000), target: (p) => dialog(p).locator("textarea").first().locator("xpath=..") },
 
@@ -277,7 +284,38 @@ const SHOTS: Shot[] = [
   { file: "admin-settings-2", role: "admin", path: "/admin/settings", prepare: (p) => text(p, "My Page announcement").scrollIntoViewIfNeeded(), target: (p) => card(text(p, "My Page announcement")) },
   { file: "admin-settings-3", role: "admin", path: "/admin/settings", prepare: (p) => text(p, "Resume & cover letter prompt").scrollIntoViewIfNeeded(), target: (p) => card(text(p, "Resume & cover letter prompt")) },
   { file: "admin-settings-4", role: "admin", path: "/admin/settings", prepare: (p) => text(p, "Extra generation instructions").scrollIntoViewIfNeeded(), target: (p) => card(text(p, "Extra generation instructions")) },
-  { file: "admin-settings-5", role: "admin", path: "/admin/settings", prepare: (p) => text(p, "Notifications & daily report").scrollIntoViewIfNeeded(), target: (p) => card(text(p, "Notifications & daily report")) },
+  { file: "admin-settings-5", role: "admin", path: "/admin/settings", prepare: (p) => text(p, "ATS optimization").scrollIntoViewIfNeeded(), target: (p) => card(text(p, "ATS optimization")) },
+  { file: "admin-settings-6", role: "admin", path: "/admin/settings", prepare: (p) => text(p, "Notifications & daily report").scrollIntoViewIfNeeded(), target: (p) => card(text(p, "Notifications & daily report")) },
+
+  /* chat (admin: sees groups, forwarding and Daily reports) */
+  { file: "chat-1", role: "admin", path: "/applications", target: (p) => p.getByRole("link", { name: /^Chat(, \d+ unread)?$/ }).and(p.locator(".btn-icon")).first() },
+  { file: "chat-2", role: "admin", path: "/chat", target: (p) => btn(p, /^Team chat/) },
+  { file: "chat-3", role: "admin", path: "/chat", target: (p) => btn(p, "New message") },
+  { file: "chat-4", role: "admin", path: "/chat", target: (p) => [btn(p, "New group"), btn(p, /^Daniel Park team/)] },
+  { file: "chat-5", role: "admin", path: "/chat", prepare: (p) => main(p).locator("textarea").first().fill("Great work today, everyone!"), target: (p) => [main(p).locator("textarea").first(), btn(p, "Send")] },
+  { file: "chat-6", role: "admin", path: "/chat", prepare: async (p) => { await main(p).locator("textarea").first().click(); await p.keyboard.type("@Ca", { delay: 80 }); await wait(p, 800); }, target: (p) => [main(p).locator("textarea").first(), p.getByRole("listbox").or(p.getByRole("option").first().locator("xpath=..")).first()] },
+  { file: "chat-7", role: "admin", path: "/chat", prepare: (p) => main(p).locator('img[src*="confirmation"]').first().scrollIntoViewIfNeeded(), target: (p) => [main(p).locator('img[src*="confirmation"]').first(), btn(p, "Add images")] },
+  { file: "chat-8", role: "admin", path: "/chat", prepare: async (p) => { await text(p, /Good morning! Starting/).hover(); await wait(p, 500); }, target: (p) => text(p, /Good morning! Starting/).locator("xpath=ancestor::*[.//button[@aria-label='Reply']][1]") },
+  { file: "chat-9", role: "admin", path: "/chat", prepare: async (p) => { await text(p, /Good morning! Starting/).hover(); await click(btn(text(p, /Good morning! Starting/).locator("xpath=ancestor::*[.//button[@aria-label='More']][1]"), "More")); await click(p.getByRole("menuitem", { name: /Forward/ }), 1000); }, target: (p) => dialog(p) },
+  { file: "chat-10", role: "admin", path: "/chat", target: (p) => btn(p, /^Alex Morgan: Team rules/) },
+  { file: "chat-11", role: "admin", path: "/chat", prepare: async (p) => { await click(btn(p, "Search this conversation")); await p.keyboard.type("Stripe", { delay: 50 }); await wait(p, 3500); }, target: (p) => main(p).locator("input").filter({ visible: true }).first().locator("xpath=../..") },
+  { file: "chat-12", role: "admin", path: "/chat", prepare: (p) => main(p).locator("a", { hasText: "Payments Infrastructure" }).first().scrollIntoViewIfNeeded(), target: (p) => main(p).locator("a", { hasText: "Payments Infrastructure" }).first().locator("xpath=..") },
+  { file: "chat-13", role: "admin", path: "/chat", prepare: (p) => click(btn(p, /^Daily reports/), 1500), target: (p) => [btn(p, /^Daily reports/), btn(p, /Post now/)] },
+
+  /* admin-job-links (profile manager) */
+  { file: "admin-job-links-1", role: "user", path: "/admin/job-links", prepare: (p) => click(btn(p, /^Daniel Park/), 1500), target: (p) => [main(p).getByPlaceholder("Search profiles"), btn(p, /^Sophia Nguyen/)] },
+  { file: "admin-job-links-2", role: "user", path: "/admin/job-links", prepare: (p) => click(btn(p, /^Daniel Park/), 1500), target: (p) => [card(text(p, "Unique job links")), card(text(p, "for this profile"))] },
+  { file: "admin-job-links-3", role: "user", path: "/admin/job-links", prepare: (p) => click(btn(p, /^Daniel Park/), 1500), target: (p) => [field(p, "From"), field(p, "Search")] },
+  { file: "admin-job-links-4", role: "user", path: "/admin/job-links", prepare: (p) => click(btn(p, /^Daniel Park/), 1500), target: (p) => p.locator("tbody tr").filter({ visible: true }).nth(3) },
+  { file: "admin-job-links-5", role: "user", path: "/admin/job-links", prepare: async (p) => { await click(btn(p, /^Daniel Park/), 1500); for (let i = 0; i < 3; i++) await p.locator("tbody input[type=checkbox]").nth(i).check(); await wait(p); }, target: (p) => btn(p, /^Copy selected/) },
+  { file: "admin-job-links-6", role: "user", path: "/admin/job-links", prepare: (p) => click(btn(p, /^Daniel Park/), 1500), target: (p) => btn(p, "Copy all links") },
+  { file: "admin-job-links-7", role: "user", path: "/admin/job-links", prepare: (p) => click(btn(p, /^Daniel Park/), 1500), target: (p) => p.locator("th", { hasText: /^Copied$/i }).first() },
+  { file: "admin-job-links-8", role: "user", path: "/admin/job-links", prepare: (p) => click(btn(p, /^Daniel Park/), 1500), target: (p) => btn(p, "Clear copied") },
+
+  /* admin-page-access */
+  { file: "admin-page-access-1", role: "admin", path: "/admin/page-access", target: (p) => card(main(p).getByRole("heading", { name: "Workspace" })) },
+  { file: "admin-page-access-2", role: "admin", path: "/admin/page-access", target: (p) => [btn(p, "All on"), btn(p, "Save")] },
+  { file: "admin-page-access-3", role: "admin", path: "/admin/page-access", prepare: (p) => p.evaluate(() => window.scrollTo(0, document.body.scrollHeight)), target: (p) => main(p).locator(".card").last(), scroll: "none" },
 ];
 
 async function openRequestForm(p: Page) {
@@ -288,7 +326,7 @@ async function openRequestForm(p: Page) {
 }
 async function openInterview(p: Page) {
   await click(tab(p, "List"));
-  await click(main(p).locator("tbody tr", { hasText: "Shopify" }).filter({ hasText: "Scheduled" }).first(), 1500);
+  await click(main(p).locator("tbody tr", { hasText: "Shopify" }).filter({ hasText: "Step 2" }).first(), 1500);
 }
 /** Opens the first History interview whose details offer Add / Edit feedback. */
 async function openDoneInterview(p: Page) {

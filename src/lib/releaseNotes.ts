@@ -25,6 +25,19 @@ const APPS: ReleaseRole[] = ["admin", "user", "bidder"];
 /** Newest first. */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-02-2",
+    date: "2026-11-02",
+    title: "Help is up to date",
+    changes: [
+      {
+        text: "Help (and the ? button on each page) has new screenshots for every step and covers the recent changes: the job description layout and salary, Job match and the AI review, Regenerate, Delete, attachments in Chat, BambooHR and Gem links, and the new calendar cards.",
+        roles: APPS,
+      },
+      { text: "Help for My Schedule now explains the new calendar cards (time, step, status, company, role, profile and caller).", roles: ["caller"] },
+      { text: "Settings help also covers ATS optimization and the Daily reports switch.", roles: ["admin"] },
+    ],
+  },
+  {
     id: "2026-11-02",
     date: "2026-11-02",
     title: "BambooHR and Gem job links",
