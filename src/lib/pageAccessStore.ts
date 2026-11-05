@@ -2,7 +2,7 @@ import { connectDB } from "./db";
 import { getSettings } from "./models/Settings";
 import { cleanDisabled, type DisabledPages } from "./pageAccess";
 
-/** Read on every page view (proxy.ts) and governed API call, so kept in memory briefly; other instances catch up within this. */
+/** Read on server-rendered page views and governed API call, so kept in memory briefly; other instances catch up within this. */
 const TTL_MS = 15_000;
 let cache: { at: number; value: DisabledPages } | null = null;
 

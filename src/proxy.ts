@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
-import { canOpen, homeFor, pageFor, type DisabledPages } from "@/lib/pageAccess";
-import { getDisabledPages } from "@/lib/pageAccessStore";
+import { canOpen, pageFor } from "@/lib/pageAccess";
 
 // Optimistic redirects only; every API route and page re-checks the user in the database.
 export async function proxy(req: NextRequest) {
@@ -13,15 +12,14 @@ export async function proxy(req: NextRequest) {
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
-  // Pages an admin turned off for this role (Admin → Page Access); admins always have every page.
-  const disabled: DisabledPages = session.role === "admin" ? {} : await getDisabledPages().catch(() => ({}));
-  const home = () => NextResponse.redirect(new URL(homeFor(session.role, disabled), req.url));
+  // The server home route selects a destination using current stored permissions.
+  const home = () => NextResponse.redirect(new URL("/", req.url));
 
   const adminOnly = pathname.startsWith("/admin/settings") || pathname.startsWith("/admin/keys") || pathname.startsWith("/admin/notifications") || pathname.startsWith("/admin/feedback") || pathname.startsWith("/admin/logs") || pathname.startsWith("/admin/prompt-test") || pathname.startsWith("/admin/api-access") || pathname.startsWith("/admin/work-time") || pathname.startsWith("/admin/page-access");
   const staff = session.role === "admin" || session.role === "user";
   const caller = session.role === "caller";
   // Callers only use their interview pages, profiles and My Page.
-  if (caller && !["/caller", "/me", "/profiles", "/notifications", "/feedback", "/help", "/interview-history"].some((p) => pathname.startsWith(p))) {
+  if (caller && !["/caller", "/me", "/profiles", "/notifications", "/feedback", "/help", "/interview-history", "/chat"].some((p) => pathname.startsWith(p))) {
     return home();
   }
   // Bidders work from Generate, Generate Resume and View Generated Resumes; Overview and Feedback are hidden from them.
@@ -39,10 +37,13 @@ export async function proxy(req: NextRequest) {
     return home();
   }
   const page = pageFor(pathname);
-  if (page && !canOpen(session.role, page.key, disabled)) return home();
-  return NextResponse.next();
+  if (page && !canOpen(session.role, page.key, {})) return home();
+  // Overwrite client input: server components use this trusted pathname for page access.
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-tailorbid-pathname", pathname);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/applications/:path*", "/profiles/:path*", "/me/:path*", "/admin/:path*", "/interviews/:path*", "/caller/:path*", "/notifications/:path*", "/feedback/:path*", "/overview/:path*", "/help", "/interview-history/:path*"],
+  matcher: ["/dashboard/:path*", "/applications/:path*", "/profiles/:path*", "/me/:path*", "/admin/:path*", "/interviews/:path*", "/caller/:path*", "/notifications/:path*", "/feedback/:path*", "/overview/:path*", "/chat/:path*", "/help", "/interview-history/:path*"],
 };
